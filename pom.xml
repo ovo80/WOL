@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+                             http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>ad.ovo.wol</groupId>
+    <artifactId>wol</artifactId>
+    <version>1.1.0</version>
+
+    <properties>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <!-- JavaFX 版本：20.0.2 是兼容 JDK 17 的最后一个版本（JavaFX 21+ 需要 JDK 21+） -->
+        <javafx.version>20.0.2</javafx.version>
+    </properties>
+
+    <dependencies>
+        <!-- JavaFX 核心控件 -->
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-controls</artifactId>
+            <version>${javafx.version}</version>
+        </dependency>
+        <!-- JavaFX FXML 支持（必须显式添加） -->
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-fxml</artifactId>
+            <version>${javafx.version}</version>
+        </dependency>
+        <!-- 日志：SLF4J 门面 + Logback 实现（企业标准，非 GUI 依赖） -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>2.0.13</version>
+        </dependency>
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <version>1.5.6</version>
+        </dependency>
+        <!-- 注意：javafx-fxml 会自动依赖 javafx-base 和 javafx-graphics，无需额外添加 -->
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!-- 编译器插件（明确版本） -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.11.0</version>
+                <configuration>
+                    <source>17</source>
+                    <target>17</target>
+                    <!-- 显式指定编码，避免 Windows 平台默认 GBK 导致中文乱码 -->
+                    <encoding>UTF-8</encoding>
+                </configuration>
+            </plugin>
+
+            <!-- 复制依赖到 target/lib 目录，并保留版本号 -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <version>3.7.1</version>
+                <executions>
+                    <execution>
+                        <id>copy-dependencies</id>
+                        <phase>prepare-package</phase>
+                        <goals>
+                            <goal>copy-dependencies</goal>
+                        </goals>
+                        <configuration>
+                            <!-- 输出目录：target/lib -->
+                            <outputDirectory>${project.build.directory}/lib</outputDirectory>
+                            <!-- 是否包含版本号：true 表示文件名带版本，如 javafx-controls-24.0.1.jar -->
+                            <stripVersion>false</stripVersion>
+                            <!-- 排除测试依赖 -->
+                            <includeScope>runtime</includeScope>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- 构建主 JAR，并在 MANIFEST 中设置 Main-Class 和 Class-Path -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>3.3.0</version>
+                <configuration>
+                    <archive>
+                        <manifest>
+                            <!-- 主类全限定名 -->
+                            <mainClass>ad.ovo.wol.MainApp</mainClass>
+                            <!-- 添加 Class-Path：lib/ 下所有依赖 JAR -->
+                            <addClasspath>true</addClasspath>
+                            <classpathPrefix>lib/</classpathPrefix>
+                            <!-- 如果使用 module-info，可能需要额外设置，但非模块化下无需 -->
+                        </manifest>
+                        <!-- 可选：如果您使用模块化，请删除下面注释 -->
+                        <!--
+                        <manifestEntries>
+                            <Add-Modules>javafx.controls,javafx.fxml</Add-Modules>
+                        </manifestEntries>
+                        -->
+                    </archive>
+                </configuration>
+            </plugin>
+
+            <!-- 可选：用于开发时快速运行（mvn javafx:run） -->
+            <plugin>
+                <groupId>org.openjfx</groupId>
+                <artifactId>javafx-maven-plugin</artifactId>
+                <version>0.0.8</version>
+                <configuration>
+                    <mainClass>ad.ovo.wol.MainApp</mainClass>
+                </configuration>
+            </plugin>
+        </plugins>
+
+        <!-- 确保 FXML / CSS / properties / xml / 图标资源文件被复制到 JAR 中 -->
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+                <includes>
+                    <include>**/*.fxml</include>
+                    <include>**/*.css</include>
+                    <include>**/*.properties</include>
+                    <include>**/*.xml</include>
+                    <include>**/*.png</include>
+                    <include>**/*.svg</include>
+                </includes>
+                <excludes>
+                    <!-- 版本文件单独走 filtering，避免对二进制资源做替换 -->
+                    <exclude>**/app.properties</exclude>
+                </excludes>
+            </resource>
+            <resource>
+                <!-- 版本号单一事实来源：构建期把 pom version 注入 app.properties，AppConfig 运行时读取 -->
+                <directory>src/main/resources</directory>
+                <includes>
+                    <include>**/app.properties</include>
+                </includes>
+                <filtering>true</filtering>
+            </resource>
+        </resources>
+    </build>
+</project>
