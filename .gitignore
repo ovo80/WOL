@@ -46,3 +46,7 @@ logs/
 
 ### AI 工作区数据（本地记忆，不入库） ###
 .workbuddy/
+
+### 本地文档（个人留存，不入库） ###
+code-review-report.md
+.learnings/
