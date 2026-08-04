@@ -61,7 +61,7 @@ mvn javafx:run
 
 ### 方式二：分离依赖打包（推荐发布）
 
-**Windows**（部署目录已含 `start.bat`，双击即可；或手动执行）：
+**Windows**：
 
 ```bash
 java --module-path "lib\javafx-base-20.0.2-win.jar;lib\javafx-graphics-20.0.2-win.jar;lib\javafx-controls-20.0.2-win.jar;lib\javafx-fxml-20.0.2-win.jar" --add-modules javafx.controls,javafx.fxml -jar wol-1.1.0.jar
