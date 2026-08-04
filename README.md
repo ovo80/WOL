@@ -9,8 +9,6 @@
 支持**多设备列表切换**、**自定义端口**与**亮/暗双主题**。
 
 > **版本说明**：Java 17（语言级别）+ JavaFX **20.0.2** + SLF4J/Logback 日志。
-> JavaFX 21+ 编译为 Java 21 字节码（class 61→65），无法在 JDK 17 上运行；
-> 20.0.2 是兼容 JDK 17 的最后一个版本，API 与本项目需求零差异。
 
 ## 工程结构
 
@@ -63,9 +61,18 @@ mvn javafx:run
 
 ### 方式二：分离依赖打包（推荐发布）
 
+**Windows**（部署目录已含 `start.bat`，双击即可；或手动执行）：
+
 ```bash
-java -jar target/wol-1.1.0.jar
+java --module-path "lib\javafx-base-20.0.2-win.jar;lib\javafx-graphics-20.0.2-win.jar;lib\javafx-controls-20.0.2-win.jar;lib\javafx-fxml-20.0.2-win.jar" --add-modules javafx.controls,javafx.fxml -jar wol-1.1.0.jar
 ```
+
+**macOS / Linux**：同上，把 4 个 `-win.jar` 换成 `-mac.jar` / `-linux.jar`。
+
+> ⚠️ 为什么不能直接 `java -jar`？JDK 启动器对「主类继承 `javafx.application.Application`」的应用
+> 有内置检查：`javafx.graphics` 必须是 **`--module-path` 上的命名模块**，仅放 classpath 会报
+> 「缺少 JavaFX 运行时组件, 需要使用该组件来运行此应用程序」后退出（`mvn javafx:run` 无此问题，
+> 因为插件会自动配置 module-path）。
 
 要求 `target/wol-1.1.0.jar` 与 `target/lib/` 保持同级（JAR 内 Class-Path 指向 `lib/`）。
 将 `target/wol-1.1.0.jar` + `target/lib/` 整体拷贝到目标机器（需安装 JDK 17+）即可运行，
