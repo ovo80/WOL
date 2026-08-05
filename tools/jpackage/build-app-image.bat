@@ -59,7 +59,7 @@ copy /y "%ROOT%\target\lib\logback-classic-*.jar" "%ROOT%\target\app-staging\" >
 copy /y "%ROOT%\target\lib\logback-core-*.jar" "%ROOT%\target\app-staging\" >nul
 
 rem ---------- 4. jpackage ----------
-echo [3/3] jpackage -> app-image
+echo [3/3] jpackage build app-image
 if exist "%ROOT%\target\dist\WOL" rmdir /s /q "%ROOT%\target\dist\WOL"
 "%JDK_JPACKAGE%" --type app-image ^
     --name WOL ^

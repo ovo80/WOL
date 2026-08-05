@@ -53,3 +53,4 @@ code-review-report.md
 
 ### jpackage 打包缓存（构建期下载，不入库） ###
 tools/jpackage/jmods/
+app-image
