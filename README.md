@@ -25,7 +25,9 @@ wol-tool/
     │   │   ├── exception/WolException.java  # 业务异常（消息可直接展示给用户）
     │   │   ├── service/WolService.java  # 业务层：校验编排/异常转译/日志
     │   │   ├── model/Device.java        # 设备模型（设备名/MAC/广播/端口）
-    │   │   ├── model/DeviceConfig.java  # Model：多设备列表 + 全局设置持久化
+    │   │   ├── model/DeviceConfig.java  # Model：设备列表（纯数据）
+    │   │   ├── model/AppSettings.java   # Model：软件设置（主题/连发次数）
+    │   │   ├── service/ConfigService.java # 持久化：设备/设置双文件读写、迁移、原子写入
     │   │   └── util/WolUtil.java        # 底层工具：魔术包构造 + UDP 发送（纯网络）
     │   └── resources/
     │       ├── icon.png                 # 应用窗口图标（打包进 JAR）
@@ -33,10 +35,13 @@ wol-tool/
     │           ├── main.fxml            # 主界面布局（设备列表 + 编辑表单）
     │           ├── css/theme-dark.css   # 深色主题（渐变背景/卡片/hover 动效）
     │           └── css/theme-light.css  # 浅色主题（同一套组件，变量化配色）
-    │           （device.properties 不打包，运行时在程序目录自动生成）
+    │           （device.properties 不打包，运行时在用户目录 ~/.wol 自动生成）
     └── test/java/ad/ovo/wol/
-        ├── SmokeCheck.java              # 冒烟测试（MAC/端口/魔术包/UDP/多设备配置）
-        └── FxmlCheck.java               # FXML + 双主题 CSS 加载测试
+        ├── WolUtilTest.java             # JUnit 5：MAC/端口/魔术包结构（参数化）
+        ├── WolServiceTest.java          # JUnit 5：广播校验/单发/连发（真实 UDP）
+        ├── DeviceConfigTest.java        # JUnit 5：设备配置往返/迁移/原子写入（临时目录隔离）
+        ├── AppSettingsTest.java         # JUnit 5：软件设置持久化/非法值回退/拆分迁移
+        └── FxmlLoadTest.java            # JUnit 5：FXML + 双主题 CSS 加载
 ```
 
 ## 构建
@@ -89,15 +94,16 @@ java --module-path "lib\javafx-base-20.0.2-win.jar;lib\javafx-graphics-20.0.2-wi
 将 `target/wol-1.1.0.jar` + `target/lib/` 整体拷贝到目标机器（需安装 JDK 17+）即可运行，
 Windows / macOS / Linux 通用（JavaFX 跨平台）。
 
-## 运行测试（无 JUnit 依赖，独立 main）
+## 运行测试（JUnit 5）
 
 ```bash
-# 核心逻辑（MAC 校验、端口边界、魔术包结构、UDP 自定义端口、配置加载）—— 无需图形环境
-java -cp "target/classes;target/test-classes;target/lib/*" ad.ovo.wol.SmokeCheck
-
-# FXML + 双主题 CSS 加载（controller 绑定、initialize、CSS 解析）—— 需要桌面会话
-java -cp "target/classes;target/test-classes;target/lib/*" ad.ovo.wol.FxmlCheck
+mvn test
 ```
+
+- `WolUtilTest` / `WolServiceTest` / `DeviceConfigTest` / `AppSettingsTest` —— 核心逻辑（MAC 校验、端口边界、魔术包结构、UDP 单发/连发、设备配置与软件设置的往返/迁移/原子写入、非法值回退），无需图形环境
+- `FxmlLoadTest` —— FXML + 双主题 CSS 加载（controller 绑定、initialize、CSS 解析），需要桌面会话
+- 测试通过 `-Dwol.config.dir` 隔离到临时目录，不触碰真实配置
+- 全量 **41 例**，`mvn test` 应全部通过
 
 ## 使用说明
 
@@ -107,10 +113,12 @@ java -cp "target/classes;target/test-classes;target/lib/*" ad.ovo.wol.FxmlCheck
 4. 确认 **目标端口**（默认 `9`，可自定义为任意 1-65535 端口）
 5. 确认 **连发次数**（全局设置，默认 `5`，每次点击连发 N 个魔术包）
 6. 点击「发送唤醒包」→ 使用**表单当前值**发送（未保存也生效）→ 状态区显示 **「魔术包已发送（连发 N 次）」**（WOL 无确认机制，界面只反馈发送结果，不承诺目标已开机）
-7. 点击「保存配置」→ 持久化当前设备修改到 **JAR 同目录**下的 `device.properties`；切换设备时若有未保存修改会弹窗确认
+7. 点击「保存配置」→ 持久化当前设备修改到 **`~/.wol/device.properties`**；切换设备时若有未保存修改会弹窗确认
 8. 右上角按钮可**亮/暗主题一键切换**，偏好自动持久化
 
-> 注意：配置文件存放在程序所在目录（打包发布时为 JAR 旁）。若该目录无写权限（如安装到系统只读目录），保存会提示失败，请将程序放在可写目录运行。
+> 注意：**设备数据与软件设置分开存储**——设备列表存 `~/.wol/device.properties`，软件设置（主题、连发次数）存 `~/.wol/settings.properties`（Windows 为 `C:\Users\<用户名>\.wol`），与程序目录解耦，
+> 安装到 `Program Files` 等受限目录也可正常读写。可用 `-Dwol.config.dir=<目录>` 覆盖；首次启动会自动
+> 把旧版本（程序目录）的 `device.properties` 迁移过来，并自动拆分出 `settings.properties`。
 
 ## 设计要点
 
@@ -121,14 +129,15 @@ java -cp "target/classes;target/test-classes;target/lib/*" ad.ovo.wol.FxmlCheck
 | 多设备 | `List<Device>`（设备名/MAC/广播/端口），`device.N.*` 编号持久化；旧单设备格式自动迁移 |
 | 连发 | 每次点击连发 N 个魔术包（默认 5，可配 1-100），间隔 100ms 防丢包 |
 | 分层架构 | controller → service（校验/异常转译/日志）→ model / util，常量集中在 `config/AppConfig` |
-| 日志 | SLF4J + Logback（`logback.xml`），控制台输出，用户可见信息仅走界面 |
+| 日志 | SLF4J + Logback（`logback.xml`），滚动文件 `~/.wol/logs/wol.log`（保留 7 天 / 50MB），用户可见信息仅走界面 |
 | 线程模型 | 发送放入 `Task<Void>` 后台线程；`updateMessage()`（内部 `Platform.runLater`）回显状态，绝不阻塞 FX 线程 |
 | 防重复提交 | 发送期间禁用「发送唤醒包」「保存配置」「新建」「删除」按钮，成功/失败/取消后统一恢复 |
 | 输入防护 | MAC 输入框 `TextFormatter` 白名单过滤（hex+分隔符）；端口仅数字；发送前 Service 层二次校验 |
 | 异常体系 | 业务异常 `WolException`（消息可直接展示）；底层保留 `IllegalArgumentException` / `IOException` |
+| 注释规范 | **Google Java Style（Javadoc，中文撰写）**：公开方法标注 `@param` / `@return` / `@throws`（含触发条件）与副作用（I/O / 网络 / 全局状态）；数据契约内联说明（配置键、魔术包结构）；圈复杂度高的方法（如 `validateBroadcast`=16）注释最密；禁用「简单/显然」类主观词 |
 | 文案约束 | 状态区只显示「魔术包已发送 / 发送失败：xxx」，无「开机成功」类字样 |
 | UI | 窗口图标（icon.png）；双主题 CSS（looked-up 颜色变量），渐变背景/圆角卡片/阴影/hover 动效；设备列表选中高亮；状态横幅分级着色 |
-| 配置存储 | **程序所在目录** `device.properties`（打包态 = JAR 同目录；开发态 = `target/classes`），首启自动创建默认配置；新建/删除设备即时落盘，字段编辑走「保存配置」 |
+| 配置存储 | **设备与设置分离**：`~/.wol/device.properties`（设备列表，`device.N.*`）+ `~/.wol/settings.properties`（主题/连发次数，`-Dwol.config.dir` 可覆盖；旧版程序目录配置与单文件设置均自动迁移），首启自动创建默认配置；新建/删除设备即时落盘，字段编辑走「保存配置」 |
 
 ## 验收对照
 

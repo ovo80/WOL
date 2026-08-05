@@ -233,24 +233,3 @@
     -fx-pref-height: 0;
 }
 
-
-.log-area {
-    -fx-text-fill: -text-secondary;
-    -fx-font-size: 12px;
-    -fx-border-color: transparent;
-    -fx-border-width: 0;
-}
-.log-area .scroll-pane,
-.log-area .scroll-pane .viewport,
-.log-area .scroll-pane .content {
-    -fx-background-color: transparent;
-    -fx-padding: 0;
-}
-.log-area .content {
-    -fx-background-color: -surface-alt;
-    -fx-background-radius: 10;
-}
-.log-area:focused {
-    -fx-border-color: transparent;
-    -fx-effect: none;
-}

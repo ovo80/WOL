@@ -55,11 +55,14 @@ tools\jpackage\build-app-image.bat
 ```
 target\dist\WOL\
 ├── WOL.exe        双击运行（无控制台）
-├── app\           主 jar + 依赖（device.properties 也落在这里）
+├── app\           主 jar + 依赖
 └── runtime\       精简 JRE（含 javafx 模块）
 ```
 
 整个 `WOL\` 目录拷到目标机器即可运行；卸载 = 删目录。
+配置文件与日志不落在 app\，而在用户目录 `~/.wol/`（可写、与程序目录解耦）：
+设备列表 `device.properties` 与软件设置 `settings.properties` 分离存储，
+首次启动自动迁移旧版程序目录下的配置并拆分；可用 `-Dwol.config.dir` 覆盖。
 
 ## 核心参数说明
 
