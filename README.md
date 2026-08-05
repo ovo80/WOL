@@ -1,14 +1,111 @@
-# 局域网 WOL 唤醒桌面工具（JavaFX）
+# 局域网 WOL 唤醒工具
 
 ![Java 17](https://img.shields.io/badge/Java-17-orange)
 ![JavaFX 20.0.2](https://img.shields.io/badge/JavaFX-20.0.2-blue)
 ![MIT License](https://img.shields.io/badge/License-MIT-green)
 
-轻量级跨平台桌面应用：通过 UDP 广播发送 Wake-on-LAN 魔术包，唤醒局域网内的远程计算机。
-**企业工程化分层**（controller / service / model / util / config），网络 I/O 全部运行在非 UI 线程，
-支持**多设备列表切换**、**自定义端口**与**亮/暗双主题**。
+> 轻量级 Windows 桌面应用：通过 UDP 广播发送 Wake-on-LAN 魔术包，唤醒局域网内的远程计算机。
+> 采用企业工程化分层，网络 I/O 全部运行在非 UI 线程，支持多设备管理、自定义端口与亮/暗双主题。
 
-> **版本说明**：Java 17（语言级别）+ JavaFX **20.0.2** + SLF4J/Logback 日志。
+## 功能特性
+
+- **多设备管理**：设备列表增删切换，配置即时持久化，重启自动回填
+- **自定义目标**：广播地址（IPv4 / IPv6 / 主机名）与目标端口（1-65535）均可配置
+- **连发防丢**：单次点击连发 N 个魔术包（默认 5，可配 1-100，间隔 100ms）
+- **亮/暗双主题**：一键切换，偏好自动持久化
+- **配置自愈**：旧版本配置自动迁移（程序目录 → 用户目录；单文件 → 设备/设置双文件）
+- **输入防护**：MAC 白名单过滤 + Service 层二次校验，非法输入即时提示
+- **防重复提交**：发送期间禁用全部操作按钮，完成后统一恢复
+
+## 技术栈
+
+Java 17 · JavaFX 20.0.2 · SLF4J + Logback · JUnit 5 · Maven · jpackage（Windows 自包含打包）
+
+## 快速开始
+
+要求 JDK 17+ 与 Maven 3。
+
+```bash
+# 构建（产物：target/wol-1.1.0.jar + target/lib/）
+mvn package
+
+# 开发运行
+mvn javafx:run
+
+# 运行测试（41 例）
+mvn test
+```
+
+### 命令行手动运行
+
+```bash
+java --module-path "lib\javafx-base-20.0.2-win.jar;lib\javafx-graphics-20.0.2-win.jar;lib\javafx-controls-20.0.2-win.jar;lib\javafx-fxml-20.0.2-win.jar" --add-modules javafx.controls,javafx.fxml -jar wol-1.1.0.jar
+```
+
+要求 `target/wol-1.1.0.jar` 与 `target/lib/` 保持同级（JAR 内 Class-Path 指向 `lib/`），
+将二者整体拷贝到目标 Windows 机器（需安装 JDK 17+）即可运行。
+
+> **为什么不能直接 `java -jar`？**
+> JDK 启动器对「主类继承 `javafx.application.Application`」的应用有内置检查：`javafx.graphics`
+> 必须是 `--module-path` 上的命名模块，仅放 classpath 会报「缺少 JavaFX 运行时组件」后退出。
+> 自 v1.1.0 起主类为独立 `Launcher`（内部 `Application.launch(MainApp.class)`），
+> 规避该检查，兼容 `-jar` / `--module-path` / jpackage 三种启动方式。
+
+## 打包分发（Windows）
+
+### 本地构建
+
+```bash
+tools\jpackage\build-app-image.bat     # 自包含目录：target\dist\WOL\（WOL.exe + 精简 JRE + JavaFX）
+tools\jpackage\build-installer.bat     # MSI 安装包：target\dist\WOL-1.1.0.msi
+```
+
+`target\dist\WOL\` **整目录拷贝即用，目标机免装 Java**，无控制台窗口。
+完整工作流、参数与踩坑记录见 `tools/jpackage/README.md`。
+
+### GitHub Actions 自动打包
+
+推送到 GitHub 后自动构建并打包，触发方式：
+
+- **push 到 `master`** 或 **手动触发**（Actions 页面 Run workflow）→ 生成两个产物并上传为 Artifact
+- **打 tag（`v*`，如 `v1.1.0`）** → 额外自动发布 GitHub Release，附件为两个产物
+
+产物（Windows 专用）：
+
+| 文件 | 说明 |
+|------|------|
+| `WOL-<版本>.msi` | 安装包（WiX，含快捷方式/菜单项/自定义安装目录） |
+| `WOL-<版本>.zip` | 绿色版：解压后运行 `WOL\WOL.exe` 即用，无需安装 |
+
+工作流见 `.github/workflows/build.yml`（`mvn package` → jpackage app-image → 打包 zip → jpackage MSI，
+JavaFX jmods 走缓存，重复构建不重复下载）。
+
+## 使用说明
+
+1. **设备列表**（左侧）：支持多台设备；「＋ 新建」追加一台（立即落盘），选中后在右侧编辑，「删除」移除（至少保留一台）
+2. 编辑 **设备名**（可选，方便识别）、**MAC 地址**（`XX:XX:XX:XX:XX:XX`，大小写不限，输入框自动过滤非法字符）
+3. 确认 **广播地址**（默认 `10.0.0.255`，可改为 `192.168.1.255` 等当前子网广播地址，也支持主机名/IPv6）
+4. 确认 **目标端口**（默认 `9`，可自定义为任意 1-65535 端口）
+5. 确认 **连发次数**（全局设置，默认 `5`，每次点击连发 N 个魔术包）
+6. 点击「发送唤醒包」→ 使用**表单当前值**发送（未保存也生效）→ 状态区显示 **「魔术包已发送（连发 N 次）」**
+   （WOL 无确认机制，界面只反馈发送结果，不承诺目标已开机）
+7. 点击「保存配置」→ 持久化当前设备修改；切换设备时若有未保存修改会弹窗确认
+8. 右上角按钮可**亮/暗主题一键切换**，偏好自动持久化
+
+### 配置存储
+
+- **设备数据与软件设置分开存储**：设备列表存 `~/.wol/device.properties`，软件设置（主题、连发次数）
+  存 `~/.wol/settings.properties`（Windows 为 `C:\Users\<用户名>\.wol`）
+- 配置目录与程序目录解耦，安装到 `Program Files` 等受限目录也可正常读写
+- 可用 `-Dwol.config.dir=<目录>` 覆盖配置目录；首次启动自动迁移旧版本配置
+  （程序目录 → 用户目录，单文件 → 双文件拆分）
+
+## 测试（JUnit 5，41 例）
+
+- `WolUtilTest` / `WolServiceTest` / `DeviceConfigTest` / `AppSettingsTest` —— 核心逻辑
+  （MAC 校验、端口边界、魔术包结构、UDP 单发/连发、配置往返/迁移/原子写入、非法值回退），无需图形环境
+- `FxmlLoadTest` —— FXML + 双主题 CSS 加载（controller 绑定、initialize、CSS 解析），需要桌面会话
+- 全部测试通过 `-Dwol.config.dir` 隔离到临时目录，不触碰真实配置
 
 ## 工程结构
 
@@ -33,7 +130,7 @@ wol-tool/
     │       ├── icon.png                 # 应用窗口图标（打包进 JAR）
     │       └── ad/ovo/wol/
     │           ├── main.fxml            # 主界面布局（设备列表 + 编辑表单）
-    │           ├── css/theme-dark.css   # 深色主题（渐变背景/卡片/hover 动效）
+    │           ├── css/theme-dark.css   # 深色主题
     │           └── css/theme-light.css  # 浅色主题（同一套组件，变量化配色）
     │           （device.properties 不打包，运行时在用户目录 ~/.wol 自动生成）
     └── test/java/ad/ovo/wol/
@@ -43,82 +140,6 @@ wol-tool/
         ├── AppSettingsTest.java         # JUnit 5：软件设置持久化/非法值回退/拆分迁移
         └── FxmlLoadTest.java            # JUnit 5：FXML + 双主题 CSS 加载
 ```
-
-## 构建
-
-```bash
-mvn package
-```
-
-产物：
-- `target/wol-1.1.0.jar` —— 主 JAR（MANIFEST 已含 Main-Class 与 Class-Path）
-- `target/lib/` —— 全部依赖（javafx-controls / javafx-fxml 等）
-
-> 本机提示：若 `mvn` 命令报 classworlds 错误，说明 M2_HOME 未生效，可用
-> `java -classpath "$MAVEN_HOME/boot/plexus-classworlds-*.jar" -Dclassworlds.conf="$MAVEN_HOME/bin/m2.conf" -Dmaven.home="$MAVEN_HOME" -Dmaven.multiModuleProjectDirectory=<项目目录> org.codehaus.plexus.classworlds.launcher.Launcher package` 代替。
-
-## 运行
-
-### 方式一：开发调试（JavaFX 插件）
-
-```bash
-mvn javafx:run
-```
-
-### 方式二：jpackage 自包含打包（推荐发布，Windows）
-
-```bash
-tools\jpackage\build-app-image.bat
-```
-
-产物 `target\dist\WOL\`（`WOL.exe` + 精简 JRE + JavaFX），**整目录拷贝即用，目标机免装 Java**，
-无控制台窗口。完整工作流、参数与踩坑见 `tools/jpackage/README.md`。
-
-### 方式三：命令行手动运行
-
-**Windows**：
-
-```bash
-java --module-path "lib\javafx-base-20.0.2-win.jar;lib\javafx-graphics-20.0.2-win.jar;lib\javafx-controls-20.0.2-win.jar;lib\javafx-fxml-20.0.2-win.jar" --add-modules javafx.controls,javafx.fxml -jar wol-1.1.0.jar
-```
-
-**macOS / Linux**：同上，把 4 个 `-win.jar` 换成 `-mac.jar` / `-linux.jar`。
-
-> ⚠️ 为什么不能直接 `java -jar`？JDK 启动器对「主类继承 `javafx.application.Application`」的应用
-> 有内置检查：`javafx.graphics` 必须是 **`--module-path` 上的命名模块**，仅放 classpath 会报
-> 「缺少 JavaFX 运行时组件, 需要使用该组件来运行此应用程序」后退出（`mvn javafx:run` 无此问题，
-> 因为插件会自动配置 module-path）。自 v1.1.0 起主类为独立 `Launcher`（内部
-> `Application.launch(MainApp.class)`），规避该检查，兼容 -jar / module-path / jpackage 三种方式。
-
-要求 `target/wol-1.1.0.jar` 与 `target/lib/` 保持同级（JAR 内 Class-Path 指向 `lib/`）。
-将 `target/wol-1.1.0.jar` + `target/lib/` 整体拷贝到目标机器（需安装 JDK 17+）即可运行，
-Windows / macOS / Linux 通用（JavaFX 跨平台）。
-
-## 运行测试（JUnit 5）
-
-```bash
-mvn test
-```
-
-- `WolUtilTest` / `WolServiceTest` / `DeviceConfigTest` / `AppSettingsTest` —— 核心逻辑（MAC 校验、端口边界、魔术包结构、UDP 单发/连发、设备配置与软件设置的往返/迁移/原子写入、非法值回退），无需图形环境
-- `FxmlLoadTest` —— FXML + 双主题 CSS 加载（controller 绑定、initialize、CSS 解析），需要桌面会话
-- 测试通过 `-Dwol.config.dir` 隔离到临时目录，不触碰真实配置
-- 全量 **41 例**，`mvn test` 应全部通过
-
-## 使用说明
-
-1. **设备列表**（左侧）：支持多台设备；「＋ 新建」追加一台（立即落盘），选中后在右侧编辑，「删除」移除（至少保留一台）
-2. 编辑 **设备名**（可选，方便识别）、**MAC 地址**（`XX:XX:XX:XX:XX:XX`，大小写不限，输入框自动过滤非法字符）
-3. 确认 **广播地址**（默认 `10.0.0.255`，可改为 `192.168.1.255` 等当前子网广播地址，也支持主机名/IPv6）
-4. 确认 **目标端口**（默认 `9`，可自定义为任意 1-65535 端口）
-5. 确认 **连发次数**（全局设置，默认 `5`，每次点击连发 N 个魔术包）
-6. 点击「发送唤醒包」→ 使用**表单当前值**发送（未保存也生效）→ 状态区显示 **「魔术包已发送（连发 N 次）」**（WOL 无确认机制，界面只反馈发送结果，不承诺目标已开机）
-7. 点击「保存配置」→ 持久化当前设备修改到 **`~/.wol/device.properties`**；切换设备时若有未保存修改会弹窗确认
-8. 右上角按钮可**亮/暗主题一键切换**，偏好自动持久化
-
-> 注意：**设备数据与软件设置分开存储**——设备列表存 `~/.wol/device.properties`，软件设置（主题、连发次数）存 `~/.wol/settings.properties`（Windows 为 `C:\Users\<用户名>\.wol`），与程序目录解耦，
-> 安装到 `Program Files` 等受限目录也可正常读写。可用 `-Dwol.config.dir=<目录>` 覆盖；首次启动会自动
-> 把旧版本（程序目录）的 `device.properties` 迁移过来，并自动拆分出 `settings.properties`。
 
 ## 设计要点
 
@@ -138,17 +159,6 @@ mvn test
 | 文案约束 | 状态区只显示「魔术包已发送 / 发送失败：xxx」，无「开机成功」类字样 |
 | UI | 窗口图标（icon.png）；双主题 CSS（looked-up 颜色变量），渐变背景/圆角卡片/阴影/hover 动效；设备列表选中高亮；状态横幅分级着色 |
 | 配置存储 | **设备与设置分离**：`~/.wol/device.properties`（设备列表，`device.N.*`）+ `~/.wol/settings.properties`（主题/连发次数，`-Dwol.config.dir` 可覆盖；旧版程序目录配置与单文件设置均自动迁移），首启自动创建默认配置；新建/删除设备即时落盘，字段编辑走「保存配置」 |
-
-## 验收对照
-
-- [x] 合法 MAC + 广播地址 + 自定义端口 → 状态区显示「魔术包已发送」（需真实环境验证唤醒）
-- [x] 非法 MAC（长度/字符错误）→ 状态区显示具体错误，界面不卡顿
-- [x] 端口越界（0 / 65536）、发送次数越界（0 / 101）→ 明确报错提示
-- [x] 每次点击连发 N 个包（默认 5），接收端实测 N 个包全部到达且内容一致
-- [x] 多台设备增删切换，配置往返读写一致；旧单设备配置自动迁移
-- [x] 保存配置 → 重启后自动回填设备列表
-- [x] 发包过程中按钮禁用，发送完成后恢复
-- [x] 窗口图标 + 亮/暗主题切换并持久化
 
 ## 许可证
 

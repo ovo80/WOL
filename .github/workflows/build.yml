@@ -1,0 +1,105 @@
+name: Build and Package
+
+on:
+  push:
+    branches: [master]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    name: Windows package (MSI + ZIP)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      - uses: actions/cache@v4
+        with:
+          path: tools/jpackage/jmods
+          key: javafx-jmods-20.0.2
+
+      - name: Extract version from pom.xml
+        id: version
+        run: |
+          [xml]$pom = Get-Content -Raw pom.xml
+          "version=$($pom.project.version)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+      - name: Build and test (41 JUnit tests)
+        run: mvn -B -ntp package
+
+      - name: Fetch JavaFX jmods (cached after first run)
+        run: |
+          $jmod = "tools/jpackage/jmods/javafx-jmods-20.0.2/javafx.controls.jmod"
+          if (-not (Test-Path $jmod)) {
+            Invoke-WebRequest -Uri "https://download2.gluonhq.com/openjfx/20.0.2/openjfx-20.0.2_windows-x64_bin-jmods.zip" -OutFile "$env:TEMP\jmods.zip"
+            Expand-Archive -Force "$env:TEMP\jmods.zip" tools/jpackage/jmods
+          }
+
+      - name: Prepare staging (main jar + runtime deps)
+        run: |
+          New-Item -ItemType Directory -Force target/app-staging | Out-Null
+          Copy-Item (Get-ChildItem target/wol-*.jar | Select-Object -First 1) target/app-staging/
+          Copy-Item target/lib/slf4j-api-*.jar, target/lib/logback-classic-*.jar, target/lib/logback-core-*.jar target/app-staging/
+
+      - name: Build app image
+        run: |
+          $jar = (Get-ChildItem target/app-staging/wol-*.jar | Select-Object -First 1).Name
+          jpackage --type app-image `
+            --name WOL `
+            --app-version ${{ steps.version.outputs.version }} `
+            --vendor ovo80 `
+            --input target/app-staging `
+            --main-jar $jar `
+            --main-class ad.ovo.wol.Launcher `
+            --module-path tools/jpackage/jmods/javafx-jmods-20.0.2 `
+            --add-modules javafx.controls,javafx.fxml,java.naming `
+            --icon src/main/resources/wol.ico `
+            --dest target/dist
+
+      - name: Package portable ZIP
+        run: |
+          Compress-Archive -Force -Path target/dist/WOL -DestinationPath "target/dist/WOL-${{ steps.version.outputs.version }}.zip"
+
+      - name: Build MSI installer (WiX preinstalled on runner)
+        run: |
+          $jar = (Get-ChildItem target/app-staging/wol-*.jar | Select-Object -First 1).Name
+          jpackage --type msi `
+            --name WOL `
+            --app-version ${{ steps.version.outputs.version }} `
+            --vendor ovo80 `
+            --input target/app-staging `
+            --main-jar $jar `
+            --main-class ad.ovo.wol.Launcher `
+            --module-path tools/jpackage/jmods/javafx-jmods-20.0.2 `
+            --add-modules javafx.controls,javafx.fxml,java.naming `
+            --icon src/main/resources/wol.ico `
+            --win-dir-chooser `
+            --win-shortcut `
+            --win-menu-group "WOL Wake-on-LAN" `
+            --dest target/dist
+
+      - name: Upload packages as artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: WOL-${{ steps.version.outputs.version }}
+          path: |
+            target/dist/WOL-${{ steps.version.outputs.version }}.msi
+            target/dist/WOL-${{ steps.version.outputs.version }}.zip
+          if-no-files-found: error
+
+      - name: Publish GitHub Release (tag only)
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ver = "${{ steps.version.outputs.version }}"
+          gh release create "$env:GITHUB_REF_NAME" "target/dist/WOL-$ver.msi" "target/dist/WOL-$ver.zip" --generate-notes
