@@ -70,7 +70,7 @@ if exist "%ROOT%\target\dist\WOL" rmdir /s /q "%ROOT%\target\dist\WOL"
     --main-class ad.ovo.wol.Launcher ^
     --module-path "%ROOT%\tools\jpackage\jmods\javafx-jmods-20.0.2" ^
     --add-modules javafx.controls,javafx.fxml,java.naming ^
-    --icon "%ROOT%\tools\jpackage\icon.ico" ^
+    --icon "%ROOT%\src\main\resources\wol.ico" ^
     --dest "%ROOT%\target\dist"
 if errorlevel 1 (
     echo [ERROR] jpackage failed.

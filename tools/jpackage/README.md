@@ -21,10 +21,11 @@
 tools/jpackage/
 ├── build-app-image.bat   一键打包（Maven 构建 + staging + jpackage）
 ├── fetch-jmods.bat       下载 JavaFX jmods（一次性，可重复执行）
-├── icon.ico              exe 图标（由 icon.png 转换，多尺寸）
 └── jmods/                下载的 jmods（不入库）
     └── javafx-jmods-20.0.2/
 ```
+
+exe 图标使用 `src/main/resources/wol.ico`（用户提供的单图 64×64 图标，随源码入库）。
 
 ## 使用步骤
 
@@ -68,7 +69,7 @@ target\dist\WOL\
 | `--main-class` | `ad.ovo.wol.Launcher` | **必须用 Launcher**（见下文坑 1） |
 | `--module-path` | jmods 目录 | jlink 的模块来源 |
 | `--add-modules` | `javafx.controls,javafx.fxml,java.naming` | 进运行时镜像的模块（java.naming 是 logback 所需，见坑 2） |
-| `--icon` | icon.ico | Windows exe 图标（需 .ico，png 不行） |
+| `--icon` | `src/main/resources/wol.ico` | Windows exe 图标（需 .ico，png 不行） |
 
 ## 踩坑记录
 
