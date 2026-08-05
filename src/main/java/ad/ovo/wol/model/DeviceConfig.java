@@ -6,14 +6,20 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.io.Writer;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -30,16 +36,20 @@ import java.util.regex.Pattern;
  * <p>配置文件存放在<b>程序所在目录</b>（JAR 同目录）下的 {@code device.properties}：
  * 打包运行时为可执行 JAR 旁；开发运行时为 {@code target/classes} 下。</p>
  *
- * <p>存储格式（编号多设备 + 全局设置）：</p>
+ * <p>存储格式（编号多设备 + 全局设置，UTF-8 明文、按设备编号有序）：</p>
  * <pre>
- * device.count=5            # 全局：每次点击连发次数
- * ui.theme=dark             # 全局：主题
+ * # ---- 设备 1 ----
  * device.1.name=书房电脑
  * device.1.mac=00:1A:2B:3C:4D:5E
  * device.1.broadcast=10.0.0.255
  * device.1.port=9
+ *
+ * # ---- 设备 2 ----
  * device.2.name=客厅 NAS
  * ...
+ *
+ * device.count=5            # 全局：每次点击连发次数
+ * ui.theme=dark             # 全局：主题
  * </pre>
  *
  * <p>旧版单设备格式（{@code device.mac / device.broadcast / device.port}）自动迁移为
@@ -84,7 +94,8 @@ public class DeviceConfig {
         if (Files.exists(file)) {
             Properties props = new Properties();
             try (InputStream in = Files.newInputStream(file)) {
-                props.load(in);
+                // UTF-8 明文读取（兼容旧版 Unicode 转义：Properties 读取时仍会解析）
+                props.load(new InputStreamReader(in, StandardCharsets.UTF_8));
                 config.sendCount = parseRange(props.getProperty(KEY_COUNT), AppConfig.DEFAULT_SEND_COUNT,
                         AppConfig.SEND_COUNT_MIN, AppConfig.SEND_COUNT_MAX, "发送次数");
                 config.theme = parseTheme(props.getProperty(KEY_THEME));
@@ -103,6 +114,8 @@ public class DeviceConfig {
     /**
      * 立即将当前配置写入程序所在目录下的配置文件（目录不存在会自动创建）。
      * <p><b>原子写入</b>：先写临时文件再原子移动，避免写入中断导致配置文件截断损坏。</p>
+     * <p><b>有序明文</b>：按设备编号升序、字段固定顺序输出，UTF-8 明文（中文不转义），
+     * 用 {@link Properties#load(java.io.Reader)} 仍可完整读回（含旧版 Unicode 转义文件）。</p>
      *
      * @throws IOException 写入失败时抛出（如目录无写权限），由调用方统一处理
      */
@@ -110,21 +123,10 @@ public class DeviceConfig {
         Path file = getConfigPath();
         Files.createDirectories(file.getParent());
 
-        Properties props = new Properties();
-        props.setProperty(KEY_COUNT, String.valueOf(sendCount));
-        props.setProperty(KEY_THEME, theme == null ? AppConfig.DEFAULT_THEME : theme);
-        for (int i = 0; i < devices.size(); i++) {
-            Device d = devices.get(i);
-            int index = i + 1;
-            props.setProperty(DEVICE_KEY_PREFIX + index + KEY_NAME, d.getName());
-            props.setProperty(DEVICE_KEY_PREFIX + index + KEY_MAC, d.getMacAddress());
-            props.setProperty(DEVICE_KEY_PREFIX + index + KEY_BROADCAST, d.getBroadcastAddress());
-            props.setProperty(DEVICE_KEY_PREFIX + index + KEY_PORT, String.valueOf(d.getPort()));
-        }
-
         Path tmp = file.resolveSibling(file.getFileName() + ".tmp");
-        try (OutputStream out = Files.newOutputStream(tmp)) {
-            props.store(out, "WOL tool config (auto-generated)");
+        try (OutputStream out = Files.newOutputStream(tmp);
+             Writer writer = new OutputStreamWriter(out, StandardCharsets.UTF_8)) {
+            writeFormatted(writer);
         }
         try {
             Files.move(tmp, file, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
@@ -133,6 +135,31 @@ public class DeviceConfig {
             Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING);
         }
         log.info("配置已保存: {} ({} 台设备)", file, devices.size());
+    }
+
+    /** 有序可读的 Properties 兼容格式：设备按编号升序 → 全局设置，UTF-8 明文 */
+    private void writeFormatted(Writer writer) throws IOException {
+        String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+        writer.write("# WOL 工具配置（自动生成，UTF-8）\n");
+        writer.write("# " + timestamp + "\n\n");
+
+        for (int i = 0; i < devices.size(); i++) {
+            Device d = devices.get(i);
+            int index = i + 1;
+            writer.write("# ---- 设备 " + index + " ----\n");
+            writeEntry(writer, DEVICE_KEY_PREFIX + index + KEY_NAME, d.getName());
+            writeEntry(writer, DEVICE_KEY_PREFIX + index + KEY_MAC, d.getMacAddress());
+            writeEntry(writer, DEVICE_KEY_PREFIX + index + KEY_BROADCAST, d.getBroadcastAddress());
+            writeEntry(writer, DEVICE_KEY_PREFIX + index + KEY_PORT, String.valueOf(d.getPort()));
+            writer.write("\n");
+        }
+        writeEntry(writer, KEY_COUNT, String.valueOf(sendCount));
+        writeEntry(writer, KEY_THEME, theme == null ? AppConfig.DEFAULT_THEME : theme);
+    }
+
+    /** 单行 key=value：反斜杠转义为 \\（Properties 读取规则），其余字符明文直写 */
+    private static void writeEntry(Writer writer, String key, String value) throws IOException {
+        writer.write(key + "=" + value.replace("\\", "\\\\") + "\n");
     }
 
     // ==================== 设备列表操作 ====================
