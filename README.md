@@ -5,7 +5,7 @@
 ![MIT License](https://img.shields.io/badge/License-MIT-green)
 
 > 轻量级 Windows 桌面应用：通过 UDP 广播发送 Wake-on-LAN 魔术包，唤醒局域网内的远程计算机。
-> 采用企业工程化分层，网络 I/O 全部运行在非 UI 线程，支持多设备管理、自定义端口与亮/暗双主题。
+> 网络 I/O 全部运行在非 UI 线程，支持多设备管理、自定义端口与亮/暗双主题。
 
 ## 功能特性
 
