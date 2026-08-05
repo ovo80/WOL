@@ -90,10 +90,28 @@ target\dist\WOL\
      当成嵌套块解析，报 `(... was unexpected at this time.)`；
    - bat 必须 **CRLF** 换行（LF 会解析错乱）；中文注释在 GBK 控制台会乱码，脚本全英文。
 
+## MSI 安装包（可选，已配置）
+
+`tools\jpackage\build-installer.bat` 生成 **MSI 安装程序**（结构与 app-image 脚本一致，
+jpackage 换 `--type msi`）：
+
+```
+WOL-1.1.0.msi  约 29MB，双击安装 / 控制面板卸载
+```
+
+- 前置：**WiX Toolset 3.x**（`candle.exe`/`light.exe` 在 PATH，本机已装；
+  jpackage 会自动探测，也可从 https://github.com/wixtoolset/wix3/releases 下载 wix311.exe）
+- 安装特性：`--win-dir-chooser` 自选安装目录、`--win-shortcut` 桌面快捷方式、
+  `--win-menu-group` 开始菜单分组
+- 已验证：本机 jpackage 打包成功（MSI 头为有效 OLE Compound File 格式）
+- 注意：未签名 MSI 安装时 SmartScreen 会提示「未知发布者」，个人自用直接忽略即可
+
 ## 进阶（可选）
 
-- **MSI 安装包**：安装 WiX Toolset 3.0+ 后 `--type msi`（自动检测 WiX；需在 PATH）。
 - **Linux/macOS**：同样流程，jmods 换对应平台压缩包（fetch 脚本按平台调整 URL），
-  图标格式分别支持 .png/.icns。
+  图标格式分别支持 .png/.icns；安装包类型分别用 `--type deb` / `--type pkg`。
+- **GitHub Actions 自动打包**：`windows-latest` runner 预装 WiX，配合
+  `actions/setup-java`（Temurin 17）+ 下载 jmods + `mvn package` + jpackage，
+  打 tag 自动出 msi 并发布到 Release（本工具仅 Windows 自用，单 runner 即可）。
 - **减小体积**：runtime 默认约 100MB+；可用 `--strip-native-commands` 等优化，
   或在 jlink 阶段排除 `--strip-debug` 等（jpackage 已默认精简）。
