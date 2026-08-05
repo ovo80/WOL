@@ -18,7 +18,8 @@ wol-tool/
 └── src/
     ├── main/
     │   ├── java/ad/ovo/wol/
-    │   │   ├── MainApp.java             # 入口（加载 FXML、窗口图标、持久化主题）
+    │   │   ├── Launcher.java            # 主类（普通 main，启动 MainApp；规避 JDK/jpackage FXHelper 检查）
+    │   │   ├── MainApp.java             # JavaFX 应用入口（加载 FXML、窗口图标、持久化主题）
     │   │   ├── MainController.java      # 控制器（多设备交互 → 委托 Service）
     │   │   ├── config/AppConfig.java    # 常量集中管理（端口/次数/主题标识）
     │   │   ├── exception/WolException.java  # 业务异常（消息可直接展示给用户）
@@ -59,7 +60,16 @@ mvn package
 mvn javafx:run
 ```
 
-### 方式二：分离依赖打包（推荐发布）
+### 方式二：jpackage 自包含打包（推荐发布，Windows）
+
+```bash
+tools\jpackage\build-app-image.bat
+```
+
+产物 `target\dist\WOL\`（`WOL.exe` + 精简 JRE + JavaFX），**整目录拷贝即用，目标机免装 Java**，
+无控制台窗口。完整工作流、参数与踩坑见 `tools/jpackage/README.md`。
+
+### 方式三：命令行手动运行
 
 **Windows**：
 
@@ -72,7 +82,8 @@ java --module-path "lib\javafx-base-20.0.2-win.jar;lib\javafx-graphics-20.0.2-wi
 > ⚠️ 为什么不能直接 `java -jar`？JDK 启动器对「主类继承 `javafx.application.Application`」的应用
 > 有内置检查：`javafx.graphics` 必须是 **`--module-path` 上的命名模块**，仅放 classpath 会报
 > 「缺少 JavaFX 运行时组件, 需要使用该组件来运行此应用程序」后退出（`mvn javafx:run` 无此问题，
-> 因为插件会自动配置 module-path）。
+> 因为插件会自动配置 module-path）。自 v1.1.0 起主类为独立 `Launcher`（内部
+> `Application.launch(MainApp.class)`），规避该检查，兼容 -jar / module-path / jpackage 三种方式。
 
 要求 `target/wol-1.1.0.jar` 与 `target/lib/` 保持同级（JAR 内 Class-Path 指向 `lib/`）。
 将 `target/wol-1.1.0.jar` + `target/lib/` 整体拷贝到目标机器（需安装 JDK 17+）即可运行，

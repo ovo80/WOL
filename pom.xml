@@ -91,8 +91,8 @@
                 <configuration>
                     <archive>
                         <manifest>
-                            <!-- 主类全限定名 -->
-                            <mainClass>ad.ovo.wol.MainApp</mainClass>
+                            <!-- 主类全限定名（独立 Launcher：不继承 Application，规避 FXHelper 模块检查） -->
+                            <mainClass>ad.ovo.wol.Launcher</mainClass>
                             <!-- 添加 Class-Path：lib/ 下所有依赖 JAR -->
                             <addClasspath>true</addClasspath>
                             <classpathPrefix>lib/</classpathPrefix>
@@ -114,7 +114,7 @@
                 <artifactId>javafx-maven-plugin</artifactId>
                 <version>0.0.8</version>
                 <configuration>
-                    <mainClass>ad.ovo.wol.MainApp</mainClass>
+                    <mainClass>ad.ovo.wol.Launcher</mainClass>
                 </configuration>
             </plugin>
         </plugins>

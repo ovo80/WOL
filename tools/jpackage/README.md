@@ -1,0 +1,98 @@
+# jpackage 打包工作流（WOL 唤醒工具）
+
+用 JDK 自带 `jpackage` 把应用打成 **自包含 app-image**：内含精简 JRE + JavaFX 运行时，
+目标机器**免装 Java**，整目录拷贝即用，无控制台窗口。
+
+## 为什么用 jpackage
+
+| 对比项 | java -jar（classpath） | jpackage（本方案） |
+|--------|------------------------|--------------------|
+| 目标机 Java | 必须预装 JDK 17+ | 免装（自带 runtime） |
+| JavaFX 模块检查 | 报「缺少 JavaFX 运行时组件」 | javafx 作为命名模块进运行时，无此问题 |
+| 控制台窗口 | 有 | 无（GUI 子系统） |
+| 图标/版本信息 | 无 | 支持 --icon / --app-version / --vendor |
+| 跨平台 | 一套 jar 通吃 | 需在目标平台分别打包 |
+
+限制：**不能交叉打包**——Windows 包只能在 Windows 上生成；Linux/macOS 同理。
+
+## 目录结构
+
+```
+tools/jpackage/
+├── build-app-image.bat   一键打包（Maven 构建 + staging + jpackage）
+├── fetch-jmods.bat       下载 JavaFX jmods（一次性，可重复执行）
+├── icon.ico              exe 图标（由 icon.png 转换，多尺寸）
+└── jmods/                下载的 jmods（不入库）
+    └── javafx-jmods-20.0.2/
+```
+
+## 使用步骤
+
+### 1. 准备 JavaFX jmods（一次性）
+
+```
+tools\jpackage\fetch-jmods.bat
+```
+
+从 Gluon 官方下载 `openjfx-20.0.2_windows-x64_bin-jmods.zip`（约 38MB）并解压。
+`build-app-image.bat` 检测缺失时会自动调用。
+
+> jmods 是 jpackage/jlink 专用格式（含 native 库），Maven 仓库的 javafx jar 无法代替。
+
+### 2. 一键打包（每次发布）
+
+```
+tools\jpackage\build-app-image.bat
+```
+
+流程：Maven 构建（自动探测 mvn.cmd → M2_HOME → MAVEN_HOME → java classworlds 直驱）
+→ 组装 staging（主 jar + slf4j/logback，javafx 由模块提供，不进 classpath）
+→ `jpackage --type app-image` → 产物 `target\dist\WOL\`。
+
+### 3. 产物与部署
+
+```
+target\dist\WOL\
+├── WOL.exe        双击运行（无控制台）
+├── app\           主 jar + 依赖（device.properties 也落在这里）
+└── runtime\       精简 JRE（含 javafx 模块）
+```
+
+整个 `WOL\` 目录拷到目标机器即可运行；卸载 = 删目录。
+
+## 核心参数说明
+
+| 参数 | 值 | 说明 |
+|------|-----|------|
+| `--type` | `app-image` | 免 WiX；`--type msi` 生成安装包需 WiX 3.0+ |
+| `--main-class` | `ad.ovo.wol.Launcher` | **必须用 Launcher**（见下文坑 1） |
+| `--module-path` | jmods 目录 | jlink 的模块来源 |
+| `--add-modules` | `javafx.controls,javafx.fxml,java.naming` | 进运行时镜像的模块（java.naming 是 logback 所需，见坑 2） |
+| `--icon` | icon.ico | Windows exe 图标（需 .ico，png 不行） |
+
+## 踩坑记录
+
+1. **主类不能继承 Application**：jpackage 原生启动器与 JDK 启动器一样，对
+   `extends Application` 的主类走 FXHelper 路径，要求主类从**命名模块**加载，
+   classpath 应用会报 `Missing JavaFX application class`。
+   → 新增 `Launcher` 普通主类，内部 `Application.launch(MainApp.class, args)`；
+   pom 的 Main-Class 与 javafx-maven-plugin 同步指向 Launcher。
+
+2. **jlink 精简运行时会缺模块**：logback 的 joran 配置器引用 `javax.naming`
+   （java.naming 模块），缺了报 `NoClassDefFoundError: javax/naming/NamingException`，
+   应用启动即失败。→ `--add-modules` 补 `java.naming`。
+
+3. **`--dest` 目录已存在会报错**：jpackage 不覆盖，脚本先 `rmdir /s /q` 旧产物。
+
+4. **bat 脚本坑（Windows 批处理）**：
+   - `if (...)` 块内的 `echo` 参数**不能含括号**——`(M2_HOME / ...)` 会被 cmd
+     当成嵌套块解析，报 `(... was unexpected at this time.)`；
+   - bat 必须 **CRLF** 换行（LF 会解析错乱）；中文注释在 GBK 控制台会乱码，脚本全英文。
+
+## 进阶（可选）
+
+- **MSI 安装包**：安装 WiX Toolset 3.0+ 后 `--type msi`（自动检测 WiX；需在 PATH）。
+- **Linux/macOS**：同样流程，jmods 换对应平台压缩包（fetch 脚本按平台调整 URL），
+  图标格式分别支持 .png/.icns。
+- **减小体积**：runtime 默认约 100MB+；可用 `--strip-native-commands` 等优化，
+  或在 jlink 阶段排除 `--strip-debug` 等（jpackage 已默认精简）。
