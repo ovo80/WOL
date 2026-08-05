@@ -1,9 +1,5 @@
-/*
- * WOL 唤醒工具 - 浅色主题
- * 设计语言：暖白背景 + 蓝色主色渐变 + 圆角卡片 + 柔和阴影
- */
 
-/* ===== 主题变量（looked-up colors） ===== */
+
 .root {
     -surface: #ffffff;
     -surface-alt: #f1f3f8;
@@ -19,7 +15,7 @@
     -focus-ring: rgba(59, 130, 246, 0.35);
 }
 
-/* ===== 根容器 ===== */
+
 .root {
     -fx-background-color: #f4f5f9;
     -fx-font-family: "Microsoft YaHei UI", "PingFang SC", "Noto Sans CJK SC", "Segoe UI", sans-serif;
@@ -28,7 +24,7 @@
     -fx-spacing: 14;
 }
 
-/* ===== 顶部 Header ===== */
+
 .app-header {
     -fx-padding: 2 2 8 2;
     -fx-spacing: 14;
@@ -55,7 +51,7 @@
     -fx-text-fill: -text-secondary;
 }
 
-/* ===== 卡片 ===== */
+
 .card {
     -fx-background-color: -surface;
     -fx-background-radius: 14;
@@ -71,7 +67,7 @@
     -fx-padding: 0 0 10 0;
 }
 
-/* ===== 表单 ===== */
+
 .field-label {
     -fx-text-fill: -text-secondary;
     -fx-font-size: 12px;
@@ -98,7 +94,7 @@
     -fx-effect: dropshadow(gaussian, -focus-ring, 12, 0.4, 0, 0);
 }
 
-/* ===== 按钮 ===== */
+
 .primary-button {
     -fx-background-color: -accent;
     -fx-background-radius: 10;
@@ -166,7 +162,7 @@
     -fx-opacity: 0.8;
 }
 
-/* ===== 状态横幅（分级着色） ===== */
+
 .status-banner {
     -fx-background-radius: 10;
     -fx-border-radius: 10;
@@ -192,7 +188,7 @@
     -fx-text-fill: -error;
 }
 
-/* ===== 设备列表 ===== */
+
 .device-list {
     -fx-background-color: transparent;
     -fx-background-radius: 10;
@@ -223,7 +219,7 @@
 .device-list .scroll-pane .viewport {
     -fx-background-color: transparent;
 }
-/* 隐藏横向滚动条（设备列表不应横向溢出），纵向保留 */
+
 .device-list .scroll-bar:horizontal {
     -fx-opacity: 0;
     -fx-pref-height: 0;
@@ -237,7 +233,7 @@
     -fx-pref-height: 0;
 }
 
-/* ===== 日志区 ===== */
+
 .log-area {
     -fx-text-fill: -text-secondary;
     -fx-font-size: 12px;

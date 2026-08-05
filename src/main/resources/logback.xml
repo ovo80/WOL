@@ -1,11 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
-    <!-- 日志目录：默认当前工作目录下的 logs/（JAR 双击运行时即 JAR 所在目录），
-         可通过 -DLOG_DIR=xxx 覆盖 -->
+
     <property name="LOG_DIR" value="${LOG_DIR:-logs}"/>
 
-    <!-- 控制台日志：开发调试用；注意 Windows 原生 cmd 控制台编码为 GBK，
-         若出现中文乱码，请将 charset 改为 GBK 或在 IDE 中运行（IDE 控制台为 UTF-8） -->
+
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
             <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{24} - %msg%n</pattern>
@@ -13,7 +11,7 @@
         </encoder>
     </appender>
 
-    <!-- 文件日志：滚动保留最近 7 天（按天切分），GUI 双击运行无控制台时排障靠它 -->
+
     <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>${LOG_DIR}/wol.log</file>
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
@@ -27,7 +25,7 @@
         </encoder>
     </appender>
 
-    <!-- 根日志级别：INFO（调试网络问题时可用 DEBUG） -->
+
     <root level="INFO">
         <appender-ref ref="STDOUT"/>
         <appender-ref ref="FILE"/>

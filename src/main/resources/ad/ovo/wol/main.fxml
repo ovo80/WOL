@@ -13,38 +13,34 @@
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.shape.SVGPath?>
 
-<!--
-  WOL 唤醒工具主界面（MVC - View 层）
-  布局：左侧设备列表（支持多设备切换）+ 右侧编辑表单
-  可用 Scene Builder 直接打开编辑；主题样式由 MainApp / MainController 动态加载
--->
+
 <VBox xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
       fx:controller="ad.ovo.wol.MainController"
       styleClass="root"
       prefWidth="720" prefHeight="540">
 
-    <!-- ===== 顶部 Header ===== -->
+
     <HBox styleClass="app-header">
         <children>
-            <!-- 图标 -->
+
             <StackPane styleClass="header-icon-bg">
                 <SVGPath styleClass="header-icon" scaleX="0.75" scaleY="0.75"
                          content="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
             </StackPane>
-            <!-- 标题区 -->
+
             <VBox HBox.hgrow="ALWAYS" alignment="CENTER_LEFT" spacing="2">
                 <Label styleClass="app-title" text="局域网 WOL 唤醒工具"/>
                 <Label styleClass="app-subtitle" text="通过 UDP 广播发送魔术包，唤醒局域网内远程计算机"/>
             </VBox>
-            <!-- 主题切换 -->
+
             <Button fx:id="themeButton" styleClass="theme-button" onAction="#onToggleTheme"/>
         </children>
     </HBox>
 
-    <!-- ===== 主体：设备列表 + 编辑表单 ===== -->
+
     <HBox spacing="12" VBox.vgrow="ALWAYS">
         <children>
-            <!-- 左侧：设备列表 -->
+
             <VBox styleClass="card" prefWidth="250" minWidth="220" maxWidth="320">
                 <Label styleClass="card-title" text="设备列表"/>
                 <ListView fx:id="deviceList" VBox.vgrow="ALWAYS"
@@ -57,7 +53,7 @@
                 </HBox>
             </VBox>
 
-            <!-- 右侧：编辑表单 -->
+
             <VBox styleClass="card" HBox.hgrow="ALWAYS">
                 <Label styleClass="card-title" text="设备信息"/>
                 <GridPane hgap="8" vgap="12">
@@ -94,7 +90,7 @@
         </children>
     </HBox>
 
-    <!-- ===== 操作区 ===== -->
+
     <HBox spacing="10">
         <Button fx:id="sendButton" styleClass="primary-button" text="发送唤醒包"
                 onAction="#onSend" maxWidth="Infinity" HBox.hgrow="ALWAYS"/>
@@ -102,7 +98,7 @@
                 onAction="#onSave" prefWidth="120"/>
     </HBox>
 
-    <!-- ===== 全局设置 + 状态 ===== -->
+
     <VBox styleClass="card">
         <Label styleClass="card-title" text="全局设置与状态"/>
         <HBox spacing="8" alignment="CENTER_LEFT" style="-fx-padding: 0 0 12 0;">

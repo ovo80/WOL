@@ -1,8 +1,4 @@
-/*
- * 对话框样式：固定 Windows 原生风格（不随应用主题变化）
- * - 白色背景、直角
- * - 扁平按钮：灰底 + 细边框 + 无光晕，hover 淡蓝（Windows 10/11 风格）
- */
+
 .dialog-pane {
     -fx-background-color: white;
     -fx-padding: 12;
@@ -23,7 +19,7 @@
     -fx-font-size: 13px;
     -fx-padding: 5 20;
     -fx-cursor: hand;
-    -fx-effect: none; /* 关闭任何发光 / 光晕 */
+    -fx-effect: none;
 }
 
 .dialog-pane .button:hover {
