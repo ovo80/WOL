@@ -2,7 +2,7 @@
 rem ============================================================
 rem  WOL MSI installer builder: Maven build + jpackage --type msi
 rem  Requires: JDK 17+ (jpackage.exe), WiX Toolset 3.x (in PATH)
-rem  Output : target\dist\WOL-1.1.0.msi
+rem  Output : target\dist\WOL-1.2.0.msi
 rem  Docs   : tools/jpackage/README.md
 rem  NOTE   : echo text must NOT contain parentheses or > in if blocks
 rem ============================================================
@@ -63,10 +63,10 @@ echo [3/3] jpackage build msi installer
 if exist "%ROOT%\target\dist\WOL-*.msi" del /q "%ROOT%\target\dist\WOL-*.msi"
 "%JDK_JPACKAGE%" --type msi ^
     --name WOL ^
-    --app-version 1.1.0 ^
+    --app-version 1.2.0 ^
     --vendor ovo80 ^
     --input "%ROOT%\target\app-staging" ^
-    --main-jar wol-1.1.0.jar ^
+    --main-jar wol-1.2.0.jar ^
     --main-class ad.ovo.wol.Launcher ^
     --module-path "%ROOT%\tools\jpackage\jmods\javafx-jmods-20.0.2" ^
     --add-modules javafx.controls,javafx.fxml,java.naming ^
@@ -82,7 +82,7 @@ if errorlevel 1 (
 
 echo.
 echo ============================================================
-echo  DONE: %ROOT%\target\dist\WOL-1.1.0.msi
+echo  DONE: %ROOT%\target\dist\WOL-1.2.0.msi
 echo  Double-click to install; uninstall via Control Panel.
 echo ============================================================
 endlocal

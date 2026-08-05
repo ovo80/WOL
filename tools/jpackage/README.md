@@ -99,7 +99,7 @@ target\dist\WOL\
 jpackage 换 `--type msi`）：
 
 ```
-WOL-1.1.0.msi  约 29MB，双击安装 / 控制面板卸载
+WOL-1.2.0.msi  约 29MB，双击安装 / 控制面板卸载
 ```
 
 - 前置：**WiX Toolset 3.x**（`candle.exe`/`light.exe` 在 PATH，本机已装；

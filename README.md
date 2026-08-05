@@ -26,7 +26,7 @@ Java 17 · JavaFX 20.0.2 · SLF4J + Logback · JUnit 5 · Maven · jpackage（Wi
 要求 JDK 17+ 与 Maven 3。
 
 ```bash
-# 构建（产物：target/wol-1.1.0.jar + target/lib/）
+# 构建（产物：target/wol-1.2.0.jar + target/lib/）
 mvn package
 
 # 开发运行
@@ -39,10 +39,10 @@ mvn test
 ### 命令行手动运行
 
 ```bash
-java --module-path "lib\javafx-base-20.0.2-win.jar;lib\javafx-graphics-20.0.2-win.jar;lib\javafx-controls-20.0.2-win.jar;lib\javafx-fxml-20.0.2-win.jar" --add-modules javafx.controls,javafx.fxml -jar wol-1.1.0.jar
+java --module-path "lib\javafx-base-20.0.2-win.jar;lib\javafx-graphics-20.0.2-win.jar;lib\javafx-controls-20.0.2-win.jar;lib\javafx-fxml-20.0.2-win.jar" --add-modules javafx.controls,javafx.fxml -jar wol-1.2.0.jar
 ```
 
-要求 `target/wol-1.1.0.jar` 与 `target/lib/` 保持同级（JAR 内 Class-Path 指向 `lib/`），
+要求 `target/wol-1.2.0.jar` 与 `target/lib/` 保持同级（JAR 内 Class-Path 指向 `lib/`），
 将二者整体拷贝到目标 Windows 机器（需安装 JDK 17+）即可运行。
 
 > **为什么不能直接 `java -jar`？**
@@ -57,7 +57,7 @@ java --module-path "lib\javafx-base-20.0.2-win.jar;lib\javafx-graphics-20.0.2-wi
 
 ```bash
 tools\jpackage\build-app-image.bat     # 自包含目录：target\dist\WOL\（WOL.exe + 精简 JRE + JavaFX）
-tools\jpackage\build-installer.bat     # MSI 安装包：target\dist\WOL-1.1.0.msi
+tools\jpackage\build-installer.bat     # MSI 安装包：target\dist\WOL-1.2.0.msi
 ```
 
 `target\dist\WOL\` **整目录拷贝即用，目标机免装 Java**，无控制台窗口。

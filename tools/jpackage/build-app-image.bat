@@ -63,10 +63,10 @@ echo [3/3] jpackage build app-image
 if exist "%ROOT%\target\dist\WOL" rmdir /s /q "%ROOT%\target\dist\WOL"
 "%JDK_JPACKAGE%" --type app-image ^
     --name WOL ^
-    --app-version 1.1.0 ^
+    --app-version 1.2.0 ^
     --vendor ovo80 ^
     --input "%ROOT%\target\app-staging" ^
-    --main-jar wol-1.1.0.jar ^
+    --main-jar wol-1.2.0.jar ^
     --main-class ad.ovo.wol.Launcher ^
     --module-path "%ROOT%\tools\jpackage\jmods\javafx-jmods-20.0.2" ^
     --add-modules javafx.controls,javafx.fxml,java.naming ^
