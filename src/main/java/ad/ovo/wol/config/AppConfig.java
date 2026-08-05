@@ -18,7 +18,7 @@ public final class AppConfig {
     private static final Logger log = LoggerFactory.getLogger(AppConfig.class);
 
     /** 应用显示名（窗口标题） */
-    public static final String APP_NAME = "局域网 WOL 唤醒工具";
+    public static final String APP_NAME = "WOL 唤醒工具";
 
     /** 应用版本号，从 app.properties 读取；读取失败回退 "dev" */
     public static final String APP_VERSION = loadVersion();
