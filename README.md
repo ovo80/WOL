@@ -1,10 +1,10 @@
-# 局域网 WOL 唤醒工具
+# WOL 唤醒工具
 
 ![Java 17](https://img.shields.io/badge/Java-17-orange)
 ![JavaFX 20.0.2](https://img.shields.io/badge/JavaFX-20.0.2-blue)
 ![MIT License](https://img.shields.io/badge/License-MIT-green)
 
-> 轻量级 Windows 桌面应用：通过 UDP 广播发送 Wake-on-LAN 魔术包，唤醒局域网内的远程计算机。
+> 轻量级 Windows 桌面应用：通过 UDP 发送 Wake-on-LAN 魔术包，唤醒远程计算机。
 > 网络 I/O 全部运行在非 UI 线程，支持多设备管理、自定义端口与亮/暗双主题。
 
 ## 功能特性
@@ -62,23 +62,6 @@ tools\jpackage\build-installer.bat     # MSI 安装包：target\dist\WOL-1.1.0.m
 
 `target\dist\WOL\` **整目录拷贝即用，目标机免装 Java**，无控制台窗口。
 完整工作流、参数与踩坑记录见 `tools/jpackage/README.md`。
-
-### GitHub Actions 自动打包
-
-推送到 GitHub 后自动构建并打包，触发方式：
-
-- **push 到 `master`** 或 **手动触发**（Actions 页面 Run workflow）→ 生成两个产物并上传为 Artifact
-- **打 tag（`v*`，如 `v1.1.0`）** → 额外自动发布 GitHub Release，附件为两个产物
-
-产物（Windows 专用）：
-
-| 文件 | 说明 |
-|------|------|
-| `WOL-<版本>.msi` | 安装包（WiX，含快捷方式/菜单项/自定义安装目录） |
-| `WOL-<版本>.zip` | 绿色版：解压后运行 `WOL\WOL.exe` 即用，无需安装 |
-
-工作流见 `.github/workflows/build.yml`（`mvn package` → jpackage app-image → 打包 zip → jpackage MSI，
-JavaFX jmods 走缓存，重复构建不重复下载）。
 
 ## 使用说明
 
