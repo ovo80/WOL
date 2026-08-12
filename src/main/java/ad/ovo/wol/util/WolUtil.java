@@ -1,3 +1,9 @@
+/*
+ * WOL 唤醒工具 - 底层网络工具（魔术包构造与 UDP 发送）。
+ *
+ * Copyright (c) 2026 ovo80
+ * MIT License. See the LICENSE file in the project root for details.
+ */
 package ad.ovo.wol.util;
 
 import java.io.IOException;
@@ -11,10 +17,8 @@ import org.slf4j.LoggerFactory;
 /**
  * 底层网络工具：魔术包构造与 UDP 发送（纯静态，无实例状态）。
  *
- * <p>异常契约：参数错误抛 {@link IllegalArgumentException}（消息面向用户， 可直接展示）；网络失败抛 {@link IOException}（由 Service
- * 层转译）。
- *
- * <p>线程安全：全部为无状态静态方法，可并发调用。
+ * <p>异常契约：参数错误抛 {@link IllegalArgumentException}（消息面向用户，可直接展示）；网络失败抛 {@link IOException} （由 Service
+ * 层转译）。线程安全：全部为无状态静态方法，可并发调用。
  */
 public final class WolUtil {
 
@@ -34,11 +38,11 @@ public final class WolUtil {
   /**
    * 解析 MAC 字符串为 6 字节数组。
    *
-   * <p>数据契约：入参支持 ":" 或 "-" 分隔的 6 组两位十六进制 （如 {@code 00:1A:2B:3C:4D:5E}），大小写不限，容忍首尾空白， 分隔符可混用。
+   * <p>数据契约：入参支持 ":" 或 "-" 分隔的 6 组两位十六进制（如 {@code 00:1A:2B:3C:4D:5E}），大小写不限，容忍首尾空白， 分隔符可混用。
    *
    * @param mac MAC 字符串；null 或空白视为非法
    * @return 6 字节数组（字节序与 MAC 原文一致）
-   * @throws IllegalArgumentException 组数不为 6、任一组非两位十六进制时； 消息含具体出错位置
+   * @throws IllegalArgumentException 组数不为 6、任一组非两位十六进制时；消息含具体出错位置
    */
   public static byte[] parseMac(String mac) throws IllegalArgumentException {
     if (mac == null || mac.isBlank()) {
@@ -74,7 +78,7 @@ public final class WolUtil {
   /**
    * 构造魔术包：6 字节 0xFF 前缀 + MAC 重复 16 次，共 102 字节。
    *
-   * <p>WOL 协议格式：网卡识别到 6 字节前缀后，读取后续 16 份相同的 MAC， 匹配自身地址即触发唤醒。
+   * <p>WOL 协议格式：网卡识别到 6 字节前缀后，读取后续 16 份相同的 MAC，匹配自身地址即触发唤醒。
    *
    * @param macBytes 恰好 6 字节的 MAC（来自 {@link #parseMac(String)}）
    * @return 102 字节魔术包
@@ -99,12 +103,12 @@ public final class WolUtil {
   /**
    * 解析广播地址，并对「是否形似子网广播」给出预警。
    *
-   * <p>判定规则：IPv4 末段为 255，或 IPv6 首字节为 0xFF，视为标准广播； 不满足且非本机任意地址（0.0.0.0/::）时仅记录警告、不阻止发送——
-   * 单播唤醒等合法目标不应被误杀。不用 {@code InetAddress.isBroadcastAddress()}：部分 JDK 17 构建缺失该方法 实现，改以字节级判定。
+   * <p>判定规则：IPv4 末段为 255，或 IPv6 首字节为 0xFF，视为标准广播；不满足且非本机任意地址（0.0.0.0/::）时仅记录警告、
+   * 不阻止发送——单播唤醒等合法目标不应被误杀。不用 {@code InetAddress.isBroadcastAddress()}：部分 JDK 17 构建缺失该方法 实现，改以字节级判定。
    *
    * @param broadcast IPv4/IPv6 地址或主机名（主机名形态触发 DNS 解析）
    * @return 解析后的地址
-   * @throws IllegalArgumentException 入参为 null/空白，或解析失败时； 消息含原始地址
+   * @throws IllegalArgumentException 入参为 null/空白，或解析失败时；消息含原始地址
    */
   public static InetAddress resolveAddress(String broadcast) throws IllegalArgumentException {
     if (broadcast == null || broadcast.isBlank()) {
@@ -131,7 +135,7 @@ public final class WolUtil {
   /**
    * 创建广播发送用 UDP Socket。
    *
-   * <p>配置：SO_BROADCAST 开启（允许发往广播地址）；SO_TIMEOUT 2000ms 为 防御性设置——当前发送路径不读取数据，仅防极端情况下悬挂。
+   * <p>配置：SO_BROADCAST 开启（允许发往广播地址）；SO_TIMEOUT 2000ms 为防御性设置——当前发送路径不读取数据，仅防极端情况下 悬挂。
    *
    * @return 已配置的 Socket；调用方负责关闭（建议 try-with-resources）
    * @throws IOException Socket 创建或配置失败时（SocketException 已转译）
@@ -151,7 +155,7 @@ public final class WolUtil {
   /**
    * 向目标地址发送单个魔术包。
    *
-   * @param socket 发送用 Socket（来自 {@link #createBroadcastSocket()}， 由调用方持有并负责关闭）
+   * @param socket 发送用 Socket（来自 {@link #createBroadcastSocket()}，由调用方持有并负责关闭）
    * @param packet 魔术包字节（102 字节，见 {@link #buildMagicPacket(byte[])}）
    * @param address 目标地址（广播或单播）
    * @param port 目标端口，1-65535（越界由 OS 层报错，本方法不校验）

@@ -1,3 +1,9 @@
+/*
+ * WOL 唤醒工具 - FXML 与双主题 CSS 加载测试。
+ *
+ * Copyright (c) 2026 ovo80
+ * MIT License. See the LICENSE file in the project root for details.
+ */
 package ad.ovo.wol;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -5,6 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import ad.ovo.wol.controller.MainController;
 import java.nio.file.Path;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -22,18 +29,14 @@ import org.junit.jupiter.api.io.TempDir;
 /**
  * FXML 与双主题 CSS 加载测试（需桌面会话）。
  *
- * <p>在 JavaFX 平台线程加载 {@code main.fxml} 并应用双主题样式表，断言： 控制器绑定正确（{@link MainController}）、主题按钮在
- * initialize 阶段已同步 初始图案——防止 {@link MainController#applyTheme(String)} 调用顺序回退 导致按钮无图案的回归。
+ * <p>断言控制器绑定正确（{@link MainController}）与主题按钮在 initialize 阶段已同步初始图案——防止 {@link
+ * MainController#applyTheme(String)} 调用顺序回退导致按钮无图案的回归。
  */
 class FxmlLoadTest {
 
   @TempDir Path tempDir;
 
-  /**
-   * 启动 JavaFX 平台（整个测试类仅一次）。
-   *
-   * @throws Exception 平台启动超时（15s）时
-   */
+  /** 启动 JavaFX 平台（整个测试类仅一次）。 */
   @BeforeAll
   static void startJavaFx() throws Exception {
     CountDownLatch latch = new CountDownLatch(1);
@@ -99,13 +102,7 @@ class FxmlLoadTest {
     assertTrue(!themeButtonText.get().isBlank(), "主题按钮启动时应有初始图案");
   }
 
-  /**
-   * 阻塞等待闩锁，超时 15s 抛异常（避免测试悬挂）。
-   *
-   * @param latch 待等待的闩锁
-   * @throws InterruptedException 等待被中断时
-   * @throws IllegalStateException 超时未释放时
-   */
+  /** 阻塞等待闩锁，超时 15s 抛异常（避免测试悬挂）。 */
   private static void await(CountDownLatch latch) throws InterruptedException {
     if (!latch.await(15, TimeUnit.SECONDS)) {
       throw new IllegalStateException("JavaFX 平台启动超时");

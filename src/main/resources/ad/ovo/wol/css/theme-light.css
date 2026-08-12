@@ -189,6 +189,33 @@
 }
 
 
+.srv-mode-box {
+    -fx-text-fill: -text-secondary;
+    -fx-font-size: 12px;
+    -fx-cursor: hand;
+}
+.srv-mode-box .box {
+    -fx-background-color: -surface-alt;
+    -fx-background-radius: 4;
+    -fx-border-color: -border-subtle;
+    -fx-border-radius: 4;
+    -fx-border-width: 1;
+}
+.srv-mode-box:selected .box {
+    -fx-background-color: -accent;
+    -fx-border-color: -accent;
+}
+.srv-mode-box .mark {
+    -fx-background-color: transparent;
+}
+.srv-mode-box:selected .mark {
+    -fx-background-color: white;
+}
+.srv-mode-box:hover .box {
+    -fx-border-color: -accent;
+}
+
+
 .device-list {
     -fx-background-color: transparent;
     -fx-background-radius: 10;

@@ -1,4 +1,10 @@
-package ad.ovo.wol.config;
+/*
+ * WOL 唤醒工具 - 全局常量集中管理。
+ *
+ * Copyright (c) 2026 ovo80
+ * MIT License. See the LICENSE file in the project root for details.
+ */
+package ad.ovo.wol.common.config;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -9,7 +15,7 @@ import org.slf4j.LoggerFactory;
 /**
  * 全局常量集中管理：端口/连发次数/主题标识/配置文件名。
  *
- * <p>约定：业务代码一律引用本类常量，禁止散落魔法数值； 新增可调参数时优先在此定义边界与默认值。
+ * <p>约定：业务代码一律引用本类常量，禁止散落魔法数值；新增可调参数时优先在此定义边界与默认值。
  */
 public final class AppConfig {
 
@@ -60,7 +66,7 @@ public final class AppConfig {
   /**
    * 从 classpath 资源 {@code /ad/ovo/wol/app.properties} 读取版本号。
    *
-   * <p>数据契约：资源内属性键 {@code app.version}（String 类型）； 资源缺失、读取失败或值为空时统一回退 {@code "dev"}。
+   * <p>数据契约：属性键 {@code app.version}；资源缺失、读取失败或值为空时统一回退 {@code "dev"}。
    *
    * @return 版本号，如 {@code "1.1.0"}；异常路径返回 {@code "dev"}
    */

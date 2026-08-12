@@ -1,3 +1,9 @@
+/*
+ * WOL 唤醒工具 - 设备配置持久化测试。
+ *
+ * Copyright (c) 2026 ovo80
+ * MIT License. See the LICENSE file in the project root for details.
+ */
 package ad.ovo.wol;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -18,7 +24,7 @@ import org.junit.jupiter.api.io.TempDir;
 /**
  * {@link ConfigService} 设备配置测试：往返读写、文件分离、迁移与原子写入。
  *
- * <p>全部用例通过系统属性 {@code wol.config.dir} 隔离到临时目录 （{@code @TempDir}），不触碰真实用户配置。
+ * <p>全部用例通过系统属性 {@code wol.config.dir} 隔离到临时目录（{@code @TempDir}），不触碰真实用户配置。
  */
 class DeviceConfigTest {
 
@@ -115,6 +121,38 @@ class DeviceConfigTest {
     DeviceConfig loaded = ConfigService.load();
     assertTrue(Files.exists(configPath), "配置缺失时应收敛到默认文件");
     assertEquals(1, loaded.getDevices().size());
+  }
+
+  @Test
+  void SRV模式字段往返读写一致() throws IOException {
+    DeviceConfig saved = new DeviceConfig();
+    Device pc = makeDevice("00:1A:2B:3C:4D:5E", "10.0.0.255", 9);
+    pc.setSrvEnabled(true);
+    pc.setSrvName("_wol._udp.frp.example.com");
+    saved.addDevice(pc);
+    ConfigService.save(saved);
+
+    DeviceConfig loaded = ConfigService.load();
+    assertEquals(1, loaded.getDevices().size());
+    assertTrue(loaded.getDevices().get(0).isSrvEnabled(), "SRV 开关应持久化");
+    assertEquals("_wol._udp.frp.example.com", loaded.getDevices().get(0).getSrvName());
+  }
+
+  @Test
+  void 旧配置缺失SRV键时回退普通模式() throws IOException {
+    Path file = ConfigService.getConfigPath();
+    Files.createDirectories(file.getParent());
+    String legacy =
+        "device.1.name=书房电脑\n"
+            + "device.1.mac=00:1A:2B:3C:4D:5E\n"
+            + "device.1.broadcast=10.0.0.255\n"
+            + "device.1.port=9\n";
+    Files.write(file, legacy.getBytes(StandardCharsets.UTF_8));
+
+    DeviceConfig loaded = ConfigService.load();
+    Device device = loaded.getDevices().get(0);
+    assertTrue(!device.isSrvEnabled(), "旧配置默认应为普通模式");
+    assertEquals("", device.getSrvName());
   }
 
   /** 构造测试设备（广播/端口可配，名称默认空）。 */

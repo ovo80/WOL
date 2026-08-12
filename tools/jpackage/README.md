@@ -71,7 +71,7 @@ target\dist\WOL\
 | `--type` | `app-image` | 免 WiX；`--type msi` 生成安装包需 WiX 3.0+ |
 | `--main-class` | `ad.ovo.wol.Launcher` | **必须用 Launcher**（见下文坑 1） |
 | `--module-path` | jmods 目录 | jlink 的模块来源 |
-| `--add-modules` | `javafx.controls,javafx.fxml,java.naming` | 进运行时镜像的模块（java.naming 是 logback 所需，见坑 2） |
+| `--add-modules` | `javafx.controls,javafx.fxml,java.naming,jdk.naming.dns` | 进运行时镜像的模块（java.naming 是 logback 所需，jdk.naming.dns 是 SRV 解析所需，见坑 2/5） |
 | `--icon` | `src/main/resources/wol.ico` | Windows exe 图标（需 .ico，png 不行） |
 
 ## 踩坑记录
@@ -93,13 +93,18 @@ target\dist\WOL\
      当成嵌套块解析，报 `(... was unexpected at this time.)`；
    - bat 必须 **CRLF** 换行（LF 会解析错乱）；中文注释在 GBK 控制台会乱码，脚本全英文。
 
+5. **SRV 解析依赖 `jdk.naming.dns` 模块**：JNDI DNS（`com.sun.jndi.dns.DnsContextFactory`）
+   位于该模块，未加入 `--add-modules` 时 jpackage 产物启动后点发送会报
+   「SRV 解析不可用：缺少 JDK DNS 模块」。→ 两个 bat 的 `--add-modules`
+   均需追加 `jdk.naming.dns`（classpath 直跑模式不受影响，该模块默认在完整 JDK 中）。
+
 ## MSI 安装包（可选，已配置）
 
 `tools\jpackage\build-installer.bat` 生成 **MSI 安装程序**（结构与 app-image 脚本一致，
 jpackage 换 `--type msi`）：
 
 ```
-WOL-1.2.1.msi  约 29MB，双击安装 / 控制面板卸载
+WOL-1.3.0.msi  约 29MB，双击安装 / 控制面板卸载
 ```
 
 - 前置：**WiX Toolset 3.x**（`candle.exe`/`light.exe` 在 PATH，本机已装；

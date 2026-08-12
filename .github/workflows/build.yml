@@ -33,7 +33,7 @@ jobs:
           [xml]$pom = Get-Content -Raw pom.xml
           "version=$($pom.project.version)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
-      - name: Build and test (41 JUnit tests)
+      - name: Build and test (70 JUnit tests)
         run: mvn -B -ntp package
 
       - name: Fetch JavaFX jmods (cached after first run)
@@ -61,7 +61,7 @@ jobs:
             --main-jar $jar `
             --main-class ad.ovo.wol.Launcher `
             --module-path tools/jpackage/jmods/javafx-jmods-20.0.2 `
-            --add-modules javafx.controls,javafx.fxml,java.naming `
+            --add-modules javafx.controls,javafx.fxml,java.naming,jdk.naming.dns `
             --icon src/main/resources/wol.ico `
             --dest target/dist
 
@@ -80,7 +80,7 @@ jobs:
             --main-jar $jar `
             --main-class ad.ovo.wol.Launcher `
             --module-path tools/jpackage/jmods/javafx-jmods-20.0.2 `
-            --add-modules javafx.controls,javafx.fxml,java.naming `
+            --add-modules javafx.controls,javafx.fxml,java.naming,jdk.naming.dns `
             --icon src/main/resources/wol.ico `
             --win-dir-chooser `
             --win-shortcut `

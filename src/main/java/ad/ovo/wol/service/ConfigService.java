@@ -1,6 +1,12 @@
+/*
+ * WOL 唤醒工具 - 配置持久化（设备列表与软件设置的读写、迁移与原子写入）。
+ *
+ * Copyright (c) 2026 ovo80
+ * MIT License. See the LICENSE file in the project root for details.
+ */
 package ad.ovo.wol.service;
 
-import ad.ovo.wol.config.AppConfig;
+import ad.ovo.wol.common.config.AppConfig;
 import ad.ovo.wol.model.AppSettings;
 import ad.ovo.wol.model.Device;
 import ad.ovo.wol.model.DeviceConfig;
@@ -37,17 +43,16 @@ import org.slf4j.LoggerFactory;
  * C:\Users\<用户名>\.wol}）：
  *
  * <ul>
- *   <li>{@code device.properties}（UTF-8）：设备列表，键 {@code device.N.name|mac|broadcast|port}（N 从 1
- *       起）；兼容旧单设备键 {@code device.mac|broadcast|port}
- *   <li>{@code settings.properties}（UTF-8）：软件设置，键 {@code ui.theme} （dark|light）与 {@code
+ *   <li>{@code device.properties}（UTF-8）：设备列表，键 {@code
+ *       device.N.name|mac|broadcast|port|srvEnabled|srvName}（N 从 1 起）；兼容旧单设备键 {@code
+ *       device.mac|broadcast|port}
+ *   <li>{@code settings.properties}（UTF-8）：软件设置，键 {@code ui.theme}（dark|light）与 {@code
  *       device.count}（1-100）
  * </ul>
  *
- * <p>迁移链（首次加载自动执行，失败仅告警不阻塞）：程序目录旧配置 → 新配置 目录；单文件配置 → 设备/设置双文件拆分。
+ * <p>迁移链（首次加载自动执行，失败仅告警不阻塞）：程序目录旧配置 → 新配置目录；单文件配置 → 设备/设置双文件拆分。
  *
- * <p>写入语义：同目录临时文件 + 原子改名 （{@link #writeAtomically(Path, ContentWriter)}），任一步失败不破坏既有文件。
- *
- * <p>线程安全：静态无状态，可并发调用。
+ * <p>写入语义：同目录临时文件 + 原子改名，任一步失败不破坏既有文件。线程安全：静态无状态，可并发调用。
  */
 public final class ConfigService {
 
@@ -72,6 +77,12 @@ public final class ConfigService {
   private static final String KEY_BROADCAST = ".broadcast";
   private static final String KEY_PORT = ".port";
 
+  /** SRV 模式开关键（true/false，缺失视为 false） */
+  private static final String KEY_SRV_ENABLED = ".srvEnabled";
+
+  /** SRV 记录名键（字符串，如 _wol._udp.example.com） */
+  private static final String KEY_SRV_NAME = ".srvName";
+
   /** 旧单设备格式键（v1.0 及更早） */
   private static final String LEGACY_MAC = "device.mac";
 
@@ -80,7 +91,7 @@ public final class ConfigService {
 
   /** 设备键识别正则：组 1 为编号，组 2 为属性名 */
   private static final Pattern DEVICE_INDEX_PATTERN =
-      Pattern.compile("^device\\.(\\d+)\\.(name|mac|broadcast|port)$");
+      Pattern.compile("^device\\.(\\d+)\\.(name|mac|broadcast|port|srvEnabled|srvName)$");
 
   /** 配置目录覆盖属性：-Dwol.config.dir=<目录> */
   private static final String CONFIG_DIR_PROPERTY = "wol.config.dir";
@@ -90,9 +101,7 @@ public final class ConfigService {
   /**
    * 加载设备列表；文件缺失时依次尝试旧位置迁移与默认文件兜底。
    *
-   * <p>容错契约：文件不存在或读取失败时返回「含一台默认设备的配置」—— 调用方永远得到非空列表，不因配置问题阻断启动。
-   *
-   * @return 设备配置；{@link DeviceConfig#getDevices()} 至少含一台设备
+   * @return 设备配置；文件不存在或读取失败时收敛为「含一台默认设备的配置」，调用方永远得到非空列表
    */
   public static DeviceConfig load() {
     DeviceConfig config = new DeviceConfig();
@@ -134,9 +143,8 @@ public final class ConfigService {
   /**
    * 加载软件设置；文件缺失时尝试从旧版单文件配置拆分。
    *
-   * <p>容错契约：非法键值回退默认（次数 {@link AppConfig#DEFAULT_SEND_COUNT}、 主题 {@link AppConfig#DEFAULT_THEME}）。
-   *
-   * @return 设置对象；theme 恒为 dark|light，sendCount 恒在 1-100
+   * @return 设置对象；非法键值回退默认（次数 {@link AppConfig#DEFAULT_SEND_COUNT}、主题 {@link
+   *     AppConfig#DEFAULT_THEME}）， theme 恒为 dark|light，sendCount 恒在 1-100
    */
   public static AppSettings loadSettings() {
     AppSettings settings = new AppSettings();
@@ -185,7 +193,7 @@ public final class ConfigService {
   /**
    * 原子写入：先写同目录 {@code <file>.tmp}，再改名覆盖目标。
    *
-   * <p>文件系统不支持原子改名时（部分网络盘）退化为普通替换； 父目录不存在时自动创建。
+   * <p>文件系统不支持原子改名时（部分网络盘）退化为普通替换；父目录不存在时自动创建。
    *
    * @param file 目标文件
    * @param content 内容写入回调
@@ -209,8 +217,8 @@ public final class ConfigService {
   /**
    * 写出设备列表（UTF-8 properties 风格）。
    *
-   * <p>数据契约：键 {@code device.N.name|mac|broadcast|port}（N 从 1 连续编号， 与列表下标对应）；port
-   * 为十进制字符串。值仅转义反斜杠——'=' 出现在值中 是安全的（Properties 按首个 '=' 切分键值），换行由单行输入框排除。
+   * <p>数据契约：键 {@code device.N.name|mac|broadcast|port|srvEnabled|srvName}（N 从 1 连续编号，与列表下标对应）； port
+   * 为十进制字符串，srvEnabled 为 true/false。值仅转义反斜杠——'=' 出现在值中是安全的（Properties 按首个 '=' 切分键值），换行由单行输入框排除。
    *
    * @throws IOException 写入失败时
    */
@@ -229,6 +237,9 @@ public final class ConfigService {
       writeEntry(writer, DEVICE_KEY_PREFIX + index + KEY_MAC, d.getMacAddress());
       writeEntry(writer, DEVICE_KEY_PREFIX + index + KEY_BROADCAST, d.getBroadcastAddress());
       writeEntry(writer, DEVICE_KEY_PREFIX + index + KEY_PORT, String.valueOf(d.getPort()));
+      writeEntry(
+          writer, DEVICE_KEY_PREFIX + index + KEY_SRV_ENABLED, String.valueOf(d.isSrvEnabled()));
+      writeEntry(writer, DEVICE_KEY_PREFIX + index + KEY_SRV_NAME, d.getSrvName());
       writer.write("\n");
     }
   }
@@ -251,7 +262,7 @@ public final class ConfigService {
    * 写出单行键值对。
    *
    * @param key 属性键
-   * @param value 属性值；须非 null（模型层已把 null 归一化为空串， 见 {@link Device} 与 {@link AppSettings}）
+   * @param value 属性值；须非 null（模型层已把 null 归一化为空串）
    * @throws IOException 写入失败时
    */
   private static void writeEntry(Writer writer, String key, String value) throws IOException {
@@ -272,18 +283,14 @@ public final class ConfigService {
   }
 
   /**
-   * 设备配置文件完整路径（{@code <configDir>/device.properties}）。
-   *
-   * @return 配置文件路径
+   * @return 设备配置文件完整路径（{@code <configDir>/device.properties}）
    */
   public static Path getConfigPath() {
     return getConfigDir().resolve(AppConfig.CONFIG_FILE_NAME);
   }
 
   /**
-   * 软件设置文件完整路径（{@code <configDir>/settings.properties}）。
-   *
-   * @return 设置文件路径
+   * @return 软件设置文件完整路径（{@code <configDir>/settings.properties}）
    */
   public static Path getSettingsPath() {
     return getConfigDir().resolve(SETTINGS_FILE_NAME);
@@ -292,7 +299,7 @@ public final class ConfigService {
   /**
    * 将旧版本（程序目录）的 device.properties 拷贝到新配置目录。
    *
-   * <p>触发条件：新目录文件不存在，且程序目录（JAR/classes 所在目录）存在 旧配置文件时；仅拷贝不删除旧文件，回滚安全。
+   * <p>触发条件：新目录文件不存在，且程序目录（JAR/classes 所在目录）存在旧配置文件时；仅拷贝不删除旧文件，回滚安全。
    *
    * <p>副作用：文件拷贝（I/O）；失败仅告警，不阻断启动。
    */
@@ -376,16 +383,9 @@ public final class ConfigService {
   /**
    * 解析属性键值对为设备列表。
    *
-   * <p>数据契约（Properties 的键 → 值类型）：
-   *
-   * <ul>
-   *   <li>{@code device.N.name} → String 设备名
-   *   <li>{@code device.N.mac} → String MAC（如 00:1A:2B:3C:4D:5E）
-   *   <li>{@code device.N.broadcast} → String 广播地址/主机名
-   *   <li>{@code device.N.port} → String 十进制端口；非法回退默认 9
-   * </ul>
-   *
-   * 键缺失的属性保留模型默认值；编号乱序时按升序收敛为连续列表。
+   * <p>数据契约（Properties 的键 → 值类型）：{@code device.N.name|mac|broadcast|srvName} → String；{@code
+   * device.N.port} → String 十进制端口（非法回退默认 9）；{@code device.N.srvEnabled} → String true/false（非法回退
+   * false）。 键缺失的属性保留模型默认值；编号乱序时按升序收敛为连续列表。
    *
    * @return 按编号升序的设备列表；无任何设备键且无旧格式键时为空列表
    */
@@ -412,6 +412,8 @@ public final class ConfigService {
                     AppConfig.PORT_MIN,
                     AppConfig.PORT_MAX,
                     "端口"));
+        case "srvEnabled" -> d.setSrvEnabled(Boolean.parseBoolean(props.getProperty(key)));
+        case "srvName" -> d.setSrvName(props.getProperty(key));
       }
     }
 

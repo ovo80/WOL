@@ -1,3 +1,9 @@
+/*
+ * WOL 唤醒工具 - WolUtil 单元测试。
+ *
+ * Copyright (c) 2026 ovo80
+ * MIT License. See the LICENSE file in the project root for details.
+ */
 package ad.ovo.wol;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
@@ -11,11 +17,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
-/**
- * {@link WolUtil} 单元测试：MAC 解析、端口边界与魔术包结构（无网络 I/O）。
- *
- * <p>参数化用例覆盖合法/非法输入边界；非法输入统一断言 {@link IllegalArgumentException}。
- */
+/** {@link WolUtil} 单元测试：MAC 解析、端口边界与魔术包结构（无网络 I/O）。 */
 class WolUtilTest {
 
   @Test

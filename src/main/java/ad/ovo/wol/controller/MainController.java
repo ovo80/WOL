@@ -1,14 +1,22 @@
-package ad.ovo.wol;
+/*
+ * WOL 唤醒工具 - 主界面控制器。
+ *
+ * Copyright (c) 2026 ovo80
+ * MIT License. See the LICENSE file in the project root for details.
+ */
+package ad.ovo.wol.controller;
 
-import ad.ovo.wol.config.AppConfig;
-import ad.ovo.wol.exception.WolException;
+import ad.ovo.wol.common.config.AppConfig;
+import ad.ovo.wol.common.exception.WolException;
 import ad.ovo.wol.model.AppSettings;
 import ad.ovo.wol.model.Device;
 import ad.ovo.wol.model.DeviceConfig;
 import ad.ovo.wol.service.ConfigService;
 import ad.ovo.wol.service.WolService;
+import ad.ovo.wol.service.impl.WolServiceImpl;
 import ad.ovo.wol.util.WolUtil;
 import java.io.IOException;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.UnaryOperator;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -18,6 +26,7 @@ import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
 import javafx.scene.control.TextField;
@@ -28,15 +37,13 @@ import org.slf4j.LoggerFactory;
 /**
  * 主界面控制器：设备列表、编辑表单与发送流程的交互编排。
  *
- * <p>分层约定：网络发送委托 {@link WolService}，持久化委托 {@link ConfigService}， 本类只翻译界面状态与用户意图，不直接触碰 UDP 与配置文件。
+ * <p>分层约定：网络发送委托 {@link WolService}，持久化委托 {@link ConfigService}，本类只翻译界面状态与用户意图。
  *
- * <p>可变状态（均在 FX 线程内读写）：{@link #devices} 设备列表（持久化的唯一 事实来源）、{@link #currentDevice} 当前编辑设备、{@link
- * #dirty} 未保存标记、 {@link #currentTheme} 当前主题。
+ * <p>可变状态（均在 FX 线程内读写）：{@link #devices} 设备列表（持久化的唯一事实来源）、{@link #currentDevice} 当前编辑设备、 {@link
+ * #dirty} 未保存标记、{@link #currentTheme} 当前主题。
  *
- * <p>线程模型：唯一后台线程为发送线程 {@code wol-send-thread}（见 {@link #onSend()}），其结果经 Task 回调回到 FX 线程；其余方法一律在 FX
+ * <p>线程模型：唯一后台线程为发送线程 {@code wol-send-thread}（见 {@link #onSend()}），其结果经 Task 回调回到 FX 线程； 其余方法一律在 FX
  * 线程执行。
- *
- * <p>副作用：新建/删除/保存设备与切换主题都会立即写盘（I/O）。
  */
 public class MainController {
 
@@ -49,7 +56,7 @@ public class MainController {
     ERROR
   }
 
-  private final WolService wolService = new WolService();
+  private final WolService wolService = new WolServiceImpl();
 
   /** 设备列表，与左侧 ListView 绑定；增删后需同步持久化 */
   private final ObservableList<Device> devices = FXCollections.observableArrayList();
@@ -73,6 +80,9 @@ public class MainController {
   @FXML private TextField broadcastField;
   @FXML private TextField portField;
   @FXML private TextField countField;
+  @FXML private CheckBox srvModeBox;
+  @FXML private Label broadcastLabel;
+  @FXML private Label portLabel;
   @FXML private Button newDeviceButton;
   @FXML private Button deleteDeviceButton;
   @FXML private Button sendButton;
@@ -83,10 +93,8 @@ public class MainController {
   /**
    * FXML 加载完成后由 JavaFX 框架回调：装载配置、装配输入过滤与监听器。
    *
-   * <p>数据契约：{@link ConfigService#load()} 保证列表非空（至少一台默认设备）； {@link ConfigService#loadSettings()}
-   * 保证主题/次数为合法值（非法回退默认）。
-   *
-   * <p>执行顺序依赖：本阶段 {@code statusBanner.getScene()} 为 null， {@link #applyTheme(String)}
+   * <p>数据契约：{@link ConfigService#load()} 保证列表非空（至少一台默认设备）；{@link ConfigService#loadSettings()}
+   * 保证主题/次数为合法值（非法回退默认）。本阶段 {@code statusBanner.getScene()} 为 null，{@link #applyTheme(String)}
    * 只同步按钮图案，不触碰场景样式表。
    *
    * <p>副作用：读取设备与设置两个配置文件（I/O），可能触发旧配置迁移写盘。
@@ -138,6 +146,17 @@ public class MainController {
     bindDirty(broadcastField.textProperty());
     bindDirty(portField.textProperty());
 
+    // SRV 模式开关：切换表单语义（广播→SRV 地址、端口禁用）并标记 dirty
+    srvModeBox
+        .selectedProperty()
+        .addListener(
+            (obs, oldVal, newVal) -> {
+              if (!suppressChangeEvents) {
+                dirty = true;
+              }
+              applySrvModeUi(newVal);
+            });
+
     currentTheme = settings.getTheme();
     // initialize 阶段 scene 为 null：本调用只同步按钮图案（顺序约定见 applyTheme）
     applyTheme(settings.getTheme());
@@ -152,9 +171,12 @@ public class MainController {
   /**
    * 「发送唤醒包」：以表单当前值构造设备，后台线程连发魔术包。
    *
-   * <p>约束：表单无需先保存即可发送；发送期间禁用全部操作按钮防止重复提交， 结果（成功/失败/取消）回显状态后统一恢复按钮。
+   * <p>约束：表单无需先保存即可发送；发送期间禁用全部操作按钮防止重复提交，结果（成功/失败/取消）回显状态后统一恢复按钮。
    *
-   * <p>副作用：发起 UDP 网络发送（后台线程，阻塞时长约为连发次数 × 100ms）， 不修改配置与设备对象。
+   * <p>SRV 模式（{@link #srvModeBox} 选中）：跳过端口字段，由后台线程解析 SRV 记录得到目标地址与端口，成功后把 {@code IP:端口}
+   * 回填到端口框（程序化写入，不触发脏标记）。
+   *
+   * <p>副作用：发起 UDP 网络发送与 DNS 查询（后台线程，阻塞时长约为连发次数 × 100ms 加解析耗时），不修改配置与设备对象。
    */
   @FXML
   private void onSend() {
@@ -164,35 +186,46 @@ public class MainController {
       setStatus("发送失败：连发次数必须为 1-" + AppConfig.SEND_COUNT_MAX + " 之间的数字", StatusType.ERROR);
       return;
     }
+    final boolean srvMode = srvModeBox.isSelected();
     final Device toSend;
     try {
-      // 表单校验（端口/MAC）失败抛 IllegalArgumentException，消息直接展示
+      // 表单校验失败抛 IllegalArgumentException，消息直接展示
       toSend = deviceFromForm();
     } catch (IllegalArgumentException e) {
       setStatus(e.getMessage(), StatusType.ERROR);
       return;
     }
 
+    // SRV 模式下广播字段是记录名、端口框是解析回显位，均不直接参与目标拼接
+    final AtomicReference<String> resolvedTarget = new AtomicReference<>();
     sendButton.setDisable(true);
     saveButton.setDisable(true);
     newDeviceButton.setDisable(true);
     deleteDeviceButton.setDisable(true);
     setStatus(
-        "正在连发 "
-            + count
-            + " 个魔术包到 "
-            + toSend.getBroadcastAddress()
-            + ":"
-            + toSend.getPort()
-            + " ...",
+        srvMode
+            ? "正在解析 SRV 并连发 " + count + " 个魔术包 ..."
+            : "正在连发 "
+                + count
+                + " 个魔术包到 "
+                + toSend.getBroadcastAddress()
+                + ":"
+                + toSend.getPort()
+                + " ...",
         StatusType.INFO);
 
-    // 网络 I/O 移出 FX 线程；UI 更新仅经 Task 回调（内部 Platform.runLater）完成
+    // 网络/DNS I/O 移出 FX 线程；UI 更新仅经 Task 回调（内部 Platform.runLater）完成
     Task<Void> task =
         new Task<>() {
           @Override
           protected Void call() throws WolException {
-            wolService.sendWakeUp(toSend, count);
+            if (srvMode) {
+              // 解析结果（IP:端口）经 AtomicReference 传回 FX 线程
+              resolvedTarget.set(
+                  wolService.sendWakeUpViaSrv(toSend.getMacAddress(), toSend.getSrvName(), count));
+            } else {
+              wolService.sendWakeUp(toSend, count);
+            }
             updateMessage("魔术包已发送（连发 " + count + " 次）");
             return null;
           }
@@ -200,6 +233,13 @@ public class MainController {
 
     task.setOnSucceeded(
         e -> {
+          String target = resolvedTarget.get();
+          if (target != null) {
+            // 回显解析结果属程序化展示，不应标记为未保存修改
+            suppressChangeEvents = true;
+            portField.setText(target);
+            suppressChangeEvents = false;
+          }
           setStatus(task.getMessage() != null ? task.getMessage() : "魔术包已发送", StatusType.SUCCESS);
           restoreButtons();
         });
@@ -230,7 +270,7 @@ public class MainController {
   /**
    * 「保存配置」：表单值写入当前设备并立即持久化。
    *
-   * <p>副作用：写盘两个配置文件（I/O，原子写入）；写盘失败时内存中的设备值 已被表单覆盖（不回滚），界面提示失败原因。
+   * <p>副作用：写盘两个配置文件（I/O，原子写入）；写盘失败时内存中的设备值已被表单覆盖（不回滚），界面提示失败原因。
    */
   @FXML
   private void onSave() {
@@ -259,9 +299,7 @@ public class MainController {
   /**
    * 「＋ 新建」：追加一台默认设备并立即落盘。
    *
-   * <p>新建即持久化（重启后保留）；落盘失败时从列表移除该设备并提示。
-   *
-   * <p>副作用：写盘（I/O）。
+   * <p>副作用：写盘（I/O）；落盘失败时从列表移除该设备并提示。
    */
   @FXML
   private void onNewDevice() {
@@ -318,13 +356,6 @@ public class MainController {
     }
   }
 
-  /**
-   * 删除落盘失败时的内存回滚：移除占位设备，将被删设备恢复到原位置。
-   *
-   * @param removed 被删设备实例
-   * @param index 原列表下标（用于恢复位置）
-   * @param placeholder 删除后创建的占位设备；未创建时为 null
-   */
   private void restoreDeviceAfterFailedDelete(Device removed, int index, Device placeholder) {
     if (placeholder != null) {
       devices.remove(placeholder);
@@ -336,7 +367,7 @@ public class MainController {
   /**
    * 主题切换：dark/light 互切，即时生效并持久化。
    *
-   * <p>副作用：写盘 {@code settings.properties}（I/O）；写盘失败仅提示， 不影响本次主题在内存中生效。
+   * <p>副作用：写盘 {@code settings.properties}（I/O）；写盘失败仅提示，不影响本次主题在内存中生效。
    */
   @FXML
   private void onToggleTheme() {
@@ -358,8 +389,8 @@ public class MainController {
   /**
    * 应用主题：先同步按钮图案，再替换场景样式表。
    *
-   * <p>调用顺序约定：{@link #syncThemeButton(String)} 必须位于 scene 判空 之前——initialize 阶段 scene 为
-   * null，按钮图案需无条件同步，而样式表 操作要求场景已就绪（FxmlLoadTest 有回归断言）。
+   * <p>调用顺序约定：{@link #syncThemeButton(String)} 必须位于 scene 判空之前——initialize 阶段 scene 为 null，
+   * 按钮图案需无条件同步，而样式表操作要求场景已就绪（FxmlLoadTest 有回归断言）。
    *
    * @param theme 主题标识：dark / light
    */
@@ -374,39 +405,24 @@ public class MainController {
     log.debug("已应用主题: {}", theme);
   }
 
-  /**
-   * 同步主题按钮图案：深色主题显示 ☀，浅色主题显示 ☾。
-   *
-   * @param theme 主题标识：dark / light
-   */
   private void syncThemeButton(String theme) {
     themeButton.setText(AppConfig.THEME_DARK.equals(theme) ? "\u2600" : "\u263E");
   }
 
-  /**
-   * 将设备字段回填表单并清除脏标记。
-   *
-   * <p>回填期间置 {@link #suppressChangeEvents}，避免 setText 触发 dirty； 之后 {@link #currentDevice} 指向该实例。
-   *
-   * @param device 目标设备
-   */
   private void loadDeviceToForm(Device device) {
     currentDevice = device;
     suppressChangeEvents = true;
     nameField.setText(device.getName());
     macField.setText(device.getMacAddress());
     broadcastField.setText(device.getBroadcastAddress());
+    srvModeBox.setSelected(device.isSrvEnabled());
     portField.setText(String.valueOf(device.getPort()));
     suppressChangeEvents = false;
     dirty = false;
   }
 
   /**
-   * 从表单当前值构建新设备实例（不修改任何既有对象）。
-   *
-   * @return 新设备实例，字段来自表单
-   * @throws IllegalArgumentException 端口不在 1-65535 或 MAC 格式非法时 （消息可直接展示，见 {@link
-   *     #applyFormTo(Device)}）
+   * @return 新设备实例，字段来自表单（不修改任何既有对象）
    */
   private Device deviceFromForm() {
     Device d = new Device();
@@ -417,7 +433,7 @@ public class MainController {
   /**
    * 将表单构建的实例字段拷贝到既有设备对象。
    *
-   * <p>保留目标实例引用不变——列表选中状态依赖引用相等。
+   * <p>保留目标实例引用不变——列表选中状态依赖引用相等。SRV 模式下端口字段不参与表单（端口框为解析回显位），保留目标设备既有端口， 切回普通模式后仍可用。
    *
    * @param target 待更新的设备实例（即 {@link #currentDevice}）
    * @param form 表单构建的新实例（仅作为字段源）
@@ -426,31 +442,56 @@ public class MainController {
     target.setName(form.getName());
     target.setMacAddress(form.getMacAddress());
     target.setBroadcastAddress(form.getBroadcastAddress());
-    target.setPort(form.getPort());
+    target.setSrvEnabled(form.isSrvEnabled());
+    target.setSrvName(form.getSrvName());
+    if (!form.isSrvEnabled()) {
+      target.setPort(form.getPort());
+    }
   }
 
   /**
-   * 将表单值写入目标设备，并对端口与 MAC 做合法性校验。
+   * 将表单值写入目标设备，并对字段做合法性校验。
+   *
+   * <p>SRV 模式（{@link #srvModeBox} 选中）：广播字段语义变为 SRV 记录名，仅校验非空；端口由解析结果提供，跳过端口校验。
    *
    * @param target 写入目标（onSave 为 currentDevice；onSend 为新实例）
-   * @throws IllegalArgumentException 端口越界或 MAC 非法时；消息含具体原因
+   * @throws IllegalArgumentException 端口越界、MAC 非法或 SRV 地址为空时；消息含具体原因
    */
   private void applyFormTo(Device target) {
     target.setName(nameField.getText());
     target.setMacAddress(macField.getText());
     target.setBroadcastAddress(broadcastField.getText());
-
-    int port = parsePort(portField.getText());
-    if (port < 0) {
-      throw new IllegalArgumentException("目标端口必须为 1-65535 之间的数字");
-    }
-    target.setPort(port);
+    target.setSrvEnabled(srvModeBox.isSelected());
+    target.setSrvName(broadcastField.getText());
 
     try {
       WolUtil.parseMac(target.getMacAddress());
     } catch (IllegalArgumentException e) {
       throw new IllegalArgumentException("MAC 地址不合法：" + e.getMessage());
     }
+
+    // SRV 模式：广播字段为 SRV 记录名，端口由解析提供，两者均不在此校验
+    if (target.isSrvEnabled()) {
+      if (target.getSrvName().isBlank()) {
+        throw new IllegalArgumentException("SRV 地址不能为空");
+      }
+      return;
+    }
+
+    int port = parsePort(portField.getText());
+    if (port < 0) {
+      throw new IllegalArgumentException("目标端口必须为 1-65535 之间的数字");
+    }
+    target.setPort(port);
+  }
+
+  /** 切换表单的 SRV 语义：广播行变为 SRV 地址（提示文本同步），端口行变为「解析目标」且输入框禁用。 */
+  private void applySrvModeUi(boolean srvMode) {
+    broadcastLabel.setText(srvMode ? "SRV 地址" : "广播地址");
+    broadcastField.setPromptText(srvMode ? "如 _wol._udp.example.com（自动解析端口）" : "IP 或主机名");
+    portLabel.setText(srvMode ? "解析目标" : "目标端口");
+    portField.setDisable(srvMode);
+    portField.setPromptText(srvMode ? "发送后显示解析结果" : "默认 9");
   }
 
   /**
@@ -473,11 +514,6 @@ public class MainController {
     ConfigService.saveSettings(settings);
   }
 
-  /**
-   * 订阅字段变更：非回填阶段将 {@link #dirty} 置 true。
-   *
-   * @param property 表单字段的文本属性
-   */
   private void bindDirty(javafx.beans.value.ObservableValue<?> property) {
     property.addListener(
         (obs, oldVal, newVal) -> {
@@ -487,23 +523,10 @@ public class MainController {
         });
   }
 
-  /**
-   * 弹窗确认放弃未保存修改。
-   *
-   * @return true 表示用户选择继续（允许放弃修改）
-   */
   private boolean confirmDiscardChanges() {
     return showConfirm("未保存的修改", "当前设备的修改尚未保存，切换后将丢失。是否继续？", "继续");
   }
 
-  /**
-   * 通用确认弹窗。
-   *
-   * @param title 窗口标题
-   * @param message 正文
-   * @param okText 确认按钮文案
-   * @return true 表示点击了确认按钮
-   */
   private boolean showConfirm(String title, String message, String okText) {
     ButtonType ok = new ButtonType(okText);
     ButtonType cancel = new ButtonType("取消");
@@ -519,12 +542,7 @@ public class MainController {
     return alert.showAndWait().filter(ok::equals).isPresent();
   }
 
-  /**
-   * 更新状态横幅：切换样式类（info/success/error）并设置文本。
-   *
-   * @param message 展示文案（用户可见，不携带堆栈）
-   * @param type 样式类别
-   */
+  /** 更新状态横幅：切换样式类（info/success/error）并设置文本。 */
   private void setStatus(String message, StatusType type) {
     statusBanner.getStyleClass().removeAll("info", "success", "error");
     statusBanner.getStyleClass().add(type.name().toLowerCase());
@@ -539,20 +557,16 @@ public class MainController {
     deleteDeviceButton.setDisable(false);
   }
 
-  /** 解析端口文本，非法/越界返回 -1（哨兵约定见 {@link #parseInRange(String, int, int)}）。 */
   private int parsePort(String raw) {
     return parseInRange(raw, AppConfig.PORT_MIN, AppConfig.PORT_MAX);
   }
 
-  /** 解析连发次数文本，非法/越界返回 -1。 */
   private int parseCount(String raw) {
     return parseInRange(raw, AppConfig.SEND_COUNT_MIN, AppConfig.SEND_COUNT_MAX);
   }
 
   /**
-   * 解析闭区间整数：空白、非数字或越界一律返回 -1。
-   *
-   * <p>约定：-1 为「非法」哨兵值，由调用方决定提示文案；合法区间参数 均来自 {@link AppConfig}。
+   * 解析闭区间整数：空白、非数字或越界一律返回 -1（-1 为「非法」哨兵值，由调用方决定提示文案）。
    *
    * @param raw 原始文本，可为 null
    * @param min 合法下界（含）

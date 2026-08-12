@@ -1,11 +1,18 @@
+/*
+ * WOL 唤醒工具 - WolService 集成测试。
+ *
+ * Copyright (c) 2026 ovo80
+ * MIT License. See the LICENSE file in the project root for details.
+ */
 package ad.ovo.wol;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import ad.ovo.wol.exception.WolException;
+import ad.ovo.wol.common.exception.WolException;
 import ad.ovo.wol.model.Device;
 import ad.ovo.wol.service.WolService;
+import ad.ovo.wol.service.impl.WolServiceImpl;
 import ad.ovo.wol.util.WolUtil;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
@@ -17,11 +24,11 @@ import org.junit.jupiter.params.provider.CsvSource;
 /**
  * {@link WolService} 集成测试：广播地址校验与真实 UDP 收发。
  *
- * <p>发送目标为本机回环（127.0.0.1），用 DatagramSocket 收包断言内容一致， 不依赖外部网络环境。
+ * <p>发送目标为本机回环（127.0.0.1），用 DatagramSocket 收包断言内容一致，不依赖外部网络环境。
  */
 class WolServiceTest {
 
-  private final WolService service = new WolService();
+  private final WolService service = new WolServiceImpl();
 
   @ParameterizedTest
   @CsvSource({
@@ -48,6 +55,35 @@ class WolServiceTest {
         WolException.class,
         () -> service.sendWakeUp(makeDevice("00:11:22:33:44:55", "127.0.0.1", 9), count),
         scenario);
+  }
+
+  @Test
+  void sendWakeUpViaSrv_空SRV地址被拒绝() {
+    assertThrows(WolException.class, () -> service.sendWakeUpViaSrv("00:11:22:33:44:55", "", 1));
+    assertThrows(WolException.class, () -> service.sendWakeUpViaSrv("00:11:22:33:44:55", "   ", 1));
+  }
+
+  @Test
+  void sendWakeUpViaSrv_非法MAC被拒绝() {
+    assertThrows(
+        WolException.class, () -> service.sendWakeUpViaSrv("bad-mac", "_wol._udp.example.com", 1));
+  }
+
+  @ParameterizedTest
+  @CsvSource({"0, 次数下界", "101, 次数上界"})
+  void sendWakeUpViaSrv_非法发送次数被拒绝(int count, String scenario) {
+    assertThrows(
+        WolException.class,
+        () -> service.sendWakeUpViaSrv("00:11:22:33:44:55", "_wol._udp.example.com", count),
+        scenario);
+  }
+
+  @Test
+  void sendWakeUp_设备开启SRV模式时走SRV校验链路() {
+    // 校验在 DNS 查询前完成：SRV 地址空白即失败，不触发网络查询
+    Device d = makeDevice("00:11:22:33:44:55", "10.0.0.255", 9);
+    d.setSrvEnabled(true);
+    assertThrows(WolException.class, () -> service.sendWakeUp(d, 1));
   }
 
   @Test
@@ -82,7 +118,6 @@ class WolServiceTest {
     }
   }
 
-  /** 后台线程发送封装：测试线程内抛出的 {@link WolException} 转为 RuntimeException，避免断言线程吞掉发送失败。 */
   private void sendSilently(int port, int count) {
     try {
       service.sendWakeUp(makeDevice("00:1A:2B:3C:4D:5E", "127.0.0.1", port), count);

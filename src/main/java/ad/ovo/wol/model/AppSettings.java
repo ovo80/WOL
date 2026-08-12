@@ -1,6 +1,12 @@
+/*
+ * WOL 唤醒工具 - 软件设置模型。
+ *
+ * Copyright (c) 2026 ovo80
+ * MIT License. See the LICENSE file in the project root for details.
+ */
 package ad.ovo.wol.model;
 
-import ad.ovo.wol.config.AppConfig;
+import ad.ovo.wol.common.config.AppConfig;
 
 /**
  * 软件设置模型：连发次数与主题（持久化到 settings.properties）。

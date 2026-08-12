@@ -2,6 +2,7 @@
 
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Button?>
+<?import javafx.scene.control.CheckBox?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.ListView?>
 <?import javafx.scene.control.TextField?>
@@ -15,7 +16,7 @@
 
 
 <VBox xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
-      fx:controller="ad.ovo.wol.MainController"
+      fx:controller="ad.ovo.wol.controller.MainController"
       styleClass="root"
       prefWidth="720" prefHeight="540">
 
@@ -55,7 +56,11 @@
 
 
             <VBox styleClass="card" HBox.hgrow="ALWAYS">
-                <Label styleClass="card-title" text="设备信息"/>
+                <HBox alignment="CENTER_LEFT" spacing="8">
+                    <Label styleClass="card-title" text="设备信息" HBox.hgrow="ALWAYS"/>
+                    <CheckBox fx:id="srvModeBox" styleClass="srv-mode-box" text="SRV 模式"
+                              selected="false"/>
+                </HBox>
                 <GridPane hgap="8" vgap="12">
                     <columnConstraints>
                         <ColumnConstraints minWidth="76" prefWidth="76" maxWidth="76"/>
@@ -77,13 +82,13 @@
                                promptText="例如 00:1A:2B:3C:4D:5E"
                                onAction="#onSend"/>
 
-                    <Label styleClass="field-label" text="广播地址" GridPane.columnIndex="0" GridPane.rowIndex="2"/>
+                    <Label fx:id="broadcastLabel" styleClass="field-label" text="广播地址" GridPane.columnIndex="0" GridPane.rowIndex="2"/>
                     <TextField fx:id="broadcastField" GridPane.columnIndex="1" GridPane.rowIndex="2"
                                promptText="IP 或主机名"/>
 
-                    <Label styleClass="field-label" text="目标端口" GridPane.columnIndex="0" GridPane.rowIndex="3"/>
+                    <Label fx:id="portLabel" styleClass="field-label" text="目标端口" GridPane.columnIndex="0" GridPane.rowIndex="3"/>
                     <TextField fx:id="portField" GridPane.columnIndex="1" GridPane.rowIndex="3"
-                               maxWidth="140"
+                               maxWidth="220"
                                text="9" promptText="默认 9"/>
                 </GridPane>
             </VBox>

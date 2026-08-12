@@ -1,6 +1,12 @@
+/*
+ * WOL 唤醒工具 - JavaFX 应用入口与主窗口装配。
+ *
+ * Copyright (c) 2026 ovo80
+ * MIT License. See the LICENSE file in the project root for details.
+ */
 package ad.ovo.wol;
 
-import ad.ovo.wol.config.AppConfig;
+import ad.ovo.wol.common.config.AppConfig;
 import ad.ovo.wol.service.ConfigService;
 import javafx.application.Application;
 import javafx.application.Platform;
@@ -16,12 +22,9 @@ import org.slf4j.LoggerFactory;
 /**
  * JavaFX 应用入口：装配主窗口与主题。
  *
- * <p>职责边界：加载 {@code main.fxml} 与主题 CSS、设置窗口标题/图标/固定尺寸； 界面交互委托给 {@link MainController}。
+ * <p>职责边界：加载 {@code main.fxml} 与主题 CSS、设置窗口标题/图标/固定尺寸；界面交互委托给 {@link MainController}。
  *
- * <p>副作用：启动时读取配置文件（I/O，见 {@link ConfigService#loadSettings()}）； 启动失败时弹出模态错误框并调用 {@link
- * Platform#exit()} 终止进程。
- *
- * <p>线程约束：{@link #start(Stage)} 在 JavaFX 应用线程执行。
+ * <p>线程约束：{@link #start(Stage)} 在 JavaFX 应用线程执行；启动失败时弹出模态错误框并调用 {@link Platform#exit()} 终止进程。
  */
 public class MainApp extends Application {
 
@@ -70,11 +73,7 @@ public class MainApp extends Application {
     }
   }
 
-  /**
-   * 程序入口：直接启动本应用（与 {@link Launcher#main(String[])} 等效， 供 IDE 直接运行本类使用）。
-   *
-   * @param args 启动参数
-   */
+  /** 供 IDE 直接运行本类的入口（与 {@link Launcher#main} 等效）。 */
   public static void main(String[] args) {
     launch(args);
   }

@@ -1,9 +1,15 @@
+/*
+ * WOL 唤醒工具 - 软件设置持久化测试。
+ *
+ * Copyright (c) 2026 ovo80
+ * MIT License. See the LICENSE file in the project root for details.
+ */
 package ad.ovo.wol;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import ad.ovo.wol.config.AppConfig;
+import ad.ovo.wol.common.config.AppConfig;
 import ad.ovo.wol.model.AppSettings;
 import ad.ovo.wol.service.ConfigService;
 import java.io.IOException;
@@ -14,11 +20,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-/**
- * {@link ConfigService} 软件设置测试：主题/次数持久化与旧版单文件拆分迁移。
- *
- * <p>配置目录经系统属性 {@code wol.config.dir} 隔离到临时目录。
- */
+/** {@link ConfigService} 软件设置测试：主题/次数持久化与旧版单文件拆分迁移。 */
 class AppSettingsTest {
 
   @TempDir Path tempDir;

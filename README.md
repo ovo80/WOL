@@ -5,12 +5,14 @@
 ![MIT License](https://img.shields.io/badge/License-MIT-green)
 
 > 轻量级 Windows 桌面应用：通过 UDP 发送 Wake-on-LAN 魔术包，唤醒远程计算机。
-> 网络 I/O 全部运行在非 UI 线程，支持多设备管理、自定义端口与亮/暗双主题。
+> 网络 I/O 全部运行在非 UI 线程，支持多设备管理、自定义端口、SRV 自动解析与亮/暗双主题。
 
 ## 功能特性
 
 - **多设备管理**：设备列表增删切换，配置即时持久化，重启自动回填
 - **自定义目标**：广播地址（IPv4 / IPv6 / 主机名）与目标端口（1-65535）均可配置
+- **SRV 模式**：内网穿透端口变化无需重配——输入 SRV 记录名（如 `_wol._udp.example.com`），
+  点发送自动解析出目标地址与端口（JDK 内置 DNS，零外部依赖），解析结果回显到端口框
 - **连发防丢**：单次点击连发 N 个魔术包（默认 5，可配 1-100，间隔 100ms）
 - **亮/暗双主题**：一键切换，偏好自动持久化
 - **配置自愈**：旧版本配置自动迁移（程序目录 → 用户目录；单文件 → 设备/设置双文件）
@@ -26,7 +28,7 @@ Java 17 · JavaFX 20.0.2 · SLF4J + Logback · JUnit 5 · Maven · jpackage（Wi
 要求 JDK 17+ 与 Maven 3。
 
 ```bash
-# 构建（产物：target/wol-1.2.1.jar + target/lib/）
+# 构建（产物：target/wol-1.3.0.jar + target/lib/）
 mvn package
 
 # 开发运行
@@ -39,10 +41,10 @@ mvn test
 ### 命令行手动运行
 
 ```bash
-java --module-path "lib\javafx-base-20.0.2-win.jar;lib\javafx-graphics-20.0.2-win.jar;lib\javafx-controls-20.0.2-win.jar;lib\javafx-fxml-20.0.2-win.jar" --add-modules javafx.controls,javafx.fxml -jar wol-1.2.1.jar
+java --module-path "lib\javafx-base-20.0.2-win.jar;lib\javafx-graphics-20.0.2-win.jar;lib\javafx-controls-20.0.2-win.jar;lib\javafx-fxml-20.0.2-win.jar" --add-modules javafx.controls,javafx.fxml -jar wol-1.3.0.jar
 ```
 
-要求 `target/wol-1.2.1.jar` 与 `target/lib/` 保持同级（JAR 内 Class-Path 指向 `lib/`），
+要求 `target/wol-1.3.0.jar` 与 `target/lib/` 保持同级（JAR 内 Class-Path 指向 `lib/`），
 将二者整体拷贝到目标 Windows 机器（需安装 JDK 17+）即可运行。
 
 > **为什么不能直接 `java -jar`？**
@@ -57,7 +59,7 @@ java --module-path "lib\javafx-base-20.0.2-win.jar;lib\javafx-graphics-20.0.2-wi
 
 ```bash
 tools\jpackage\build-app-image.bat     # 自包含目录：target\dist\WOL\（WOL.exe + 精简 JRE + JavaFX）
-tools\jpackage\build-installer.bat     # MSI 安装包：target\dist\WOL-1.2.1.msi
+tools\jpackage\build-installer.bat     # MSI 安装包：target\dist\WOL-1.3.0.msi
 ```
 
 `target\dist\WOL\` **整目录拷贝即用，目标机免装 Java**，无控制台窗口。
@@ -69,26 +71,32 @@ tools\jpackage\build-installer.bat     # MSI 安装包：target\dist\WOL-1.2.1.m
 2. 编辑 **设备名**（可选，方便识别）、**MAC 地址**（`XX:XX:XX:XX:XX:XX`，大小写不限，输入框自动过滤非法字符）
 3. 确认 **广播地址**（默认 `10.0.0.255`，可改为 `192.168.1.255` 等当前子网广播地址，也支持主机名/IPv6）
 4. 确认 **目标端口**（默认 `9`，可自定义为任意 1-65535 端口）
-5. 确认 **连发次数**（全局设置，默认 `5`，每次点击连发 N 个魔术包）
-6. 点击「发送唤醒包」→ 使用**表单当前值**发送（未保存也生效）→ 状态区显示 **「魔术包已发送（连发 N 次）」**
+5. **SRV 模式**（勾选「SRV 模式」）：适用于内网穿透——穿透服务的映射端口每次开机可能变化。
+   勾选后「广播地址」变为 **SRV 地址** 输入框（填记录名如 `_wol._udp.example.com`，只填域名
+   `example.com` 会自动补前缀），「目标端口」变为 **解析目标** 且不可输入；
+   点「发送唤醒包」自动解析 SRV 得到 `地址:端口` 并回显到解析目标框，随后向该地址发送魔术包
+6. 确认 **连发次数**（全局设置，默认 `5`，每次点击连发 N 个魔术包）
+7. 点击「发送唤醒包」→ 使用**表单当前值**发送（未保存也生效）→ 状态区显示 **「魔术包已发送（连发 N 次）」**
    （WOL 无确认机制，界面只反馈发送结果，不承诺目标已开机）
-7. 点击「保存配置」→ 持久化当前设备修改；切换设备时若有未保存修改会弹窗确认
-8. 右上角按钮可**亮/暗主题一键切换**，偏好自动持久化
+8. 点击「保存配置」→ 持久化当前设备修改；切换设备时若有未保存修改会弹窗确认
+9. 右上角按钮可**亮/暗主题一键切换**，偏好自动持久化
 
 ### 配置存储
 
-- **设备数据与软件设置分开存储**：设备列表存 `~/.wol/device.properties`，软件设置（主题、连发次数）
-  存 `~/.wol/settings.properties`（Windows 为 `C:\Users\<用户名>\.wol`）
+- **设备数据与软件设置分开存储**：设备列表存 `~/.wol/device.properties`（键 `device.N.name|mac|broadcast|port|srvEnabled|srvName`），
+  软件设置（主题、连发次数）存 `~/.wol/settings.properties`（Windows 为 `C:\Users\<用户名>\.wol`）
 - 配置目录与程序目录解耦，安装到 `Program Files` 等受限目录也可正常读写
 - 可用 `-Dwol.config.dir=<目录>` 覆盖配置目录；首次启动自动迁移旧版本配置
   （程序目录 → 用户目录，单文件 → 双文件拆分）
 
-## 测试（JUnit 5，41 例）
+## 测试（JUnit 5，70 例）
 
-- `WolUtilTest` / `WolServiceTest` / `DeviceConfigTest` / `AppSettingsTest` —— 核心逻辑
-  （MAC 校验、端口边界、魔术包结构、UDP 单发/连发、配置往返/迁移/原子写入、非法值回退），无需图形环境
+- `WolUtilTest` / `WolServiceTest` / `DeviceConfigTest` / `AppSettingsTest` / `SrvUtilTest` —— 核心逻辑
+  （MAC 校验、端口边界、魔术包结构、UDP 单发/连发、配置往返/迁移/原子写入、非法值回退、
+  SRV 记录名规范化/值解析/选优），无需图形环境
 - `FxmlLoadTest` —— FXML + 双主题 CSS 加载（controller 绑定、initialize、CSS 解析），需要桌面会话
-- 全部测试通过 `-Dwol.config.dir` 隔离到临时目录，不触碰真实配置
+- 全部测试通过 `-Dwol.config.dir` 隔离到临时目录，不触碰真实配置；SRV 单测只覆盖离线路径，
+  真实 DNS 查询不纳入单测（依赖外部网络）
 
 ## 工程结构
 
@@ -100,15 +108,17 @@ wol-tool/
     │   ├── java/ad/ovo/wol/
     │   │   ├── Launcher.java            # 主类（普通 main，启动 MainApp；规避 JDK/jpackage FXHelper 检查）
     │   │   ├── MainApp.java             # JavaFX 应用入口（加载 FXML、窗口图标、持久化主题）
-    │   │   ├── MainController.java      # 控制器（多设备交互 → 委托 Service）
-    │   │   ├── config/AppConfig.java    # 常量集中管理（端口/次数/主题标识）
-    │   │   ├── exception/WolException.java  # 业务异常（消息可直接展示给用户）
-    │   │   ├── service/WolService.java  # 业务层：校验编排/异常转译/日志
-    │   │   ├── model/Device.java        # 设备模型（设备名/MAC/广播/端口）
-    │   │   ├── model/DeviceConfig.java  # Model：设备列表（纯数据）
-    │   │   ├── model/AppSettings.java   # Model：软件设置（主题/连发次数）
-    │   │   ├── service/ConfigService.java # 持久化：设备/设置双文件读写、迁移、原子写入
-    │   │   └── util/WolUtil.java        # 底层工具：魔术包构造 + UDP 发送（纯网络）
+    │   │   ├── controller/MainController.java  # 控制器（多设备交互 → 委托 Service）
+    │   │   ├── common/config/AppConfig.java    # 跨层公共：常量集中管理（端口/次数/主题标识）
+    │   │   ├── common/exception/WolException.java  # 跨层公共：业务异常（消息可直接展示给用户）
+    │   │   ├── service/WolService.java  # 业务层：WOL 发送接口（异常契约/副作用/线程安全）
+    │   │   ├── service/impl/WolServiceImpl.java  # 业务层实现：UDP 单播/广播发送 + SRV 解析链路
+    │   │   ├── service/ConfigService.java # 业务层：持久化（设备/设置双文件读写、迁移、原子写入，纯静态工具类）
+    │   │   ├── model/Device.java        # 数据模型：设备（设备名/MAC/广播/端口/SRV 开关与记录名）
+    │   │   ├── model/DeviceConfig.java  # 数据模型：设备列表（纯数据）
+    │   │   ├── model/AppSettings.java   # 数据模型：软件设置（主题/连发次数）
+    │   │   ├── util/WolUtil.java        # 工具层：魔术包构造 + UDP 发送（纯网络）
+    │   │   └── util/SrvUtil.java        # 工具层：SRV 记录查询/解析（JNDI DNS，jdk.naming.dns）
     │   └── resources/
     │       ├── icon.png                 # 应用窗口图标（打包进 JAR）
     │       └── ad/ovo/wol/
@@ -118,9 +128,10 @@ wol-tool/
     │           （device.properties 不打包，运行时在用户目录 ~/.wol 自动生成）
     └── test/java/ad/ovo/wol/
         ├── WolUtilTest.java             # JUnit 5：MAC/端口/魔术包结构（参数化）
-        ├── WolServiceTest.java          # JUnit 5：广播校验/单发/连发（真实 UDP）
+        ├── WolServiceTest.java          # JUnit 5：广播校验/单发/连发（真实 UDP）+ SRV 参数校验
         ├── DeviceConfigTest.java        # JUnit 5：设备配置往返/迁移/原子写入（临时目录隔离）
         ├── AppSettingsTest.java         # JUnit 5：软件设置持久化/非法值回退/拆分迁移
+        ├── SrvUtilTest.java             # JUnit 5：SRV 记录名规范化/值解析/选优（离线路径）
         └── FxmlLoadTest.java            # JUnit 5：FXML + 双主题 CSS 加载
 ```
 
@@ -130,7 +141,8 @@ wol-tool/
 |--------|------|
 | 魔术包 | 6 字节 `0xFF` + MAC 重复 16 次（共 102 字节） |
 | 传输 | `DatagramSocket` UDP + `setBroadcast(true)`，目标端口可配置（默认 9） |
-| 多设备 | `List<Device>`（设备名/MAC/广播/端口），`device.N.*` 编号持久化；旧单设备格式自动迁移 |
+| SRV 解析 | JDK 内置 JNDI DNS（`jdk.naming.dns` 模块，零外部依赖）：查 SRV 记录 → 取 priority 最小者 → 目标 A/AAAA 解析 → 单播发送；端口框回显 `IP:端口` |
+| 多设备 | `List<Device>`（设备名/MAC/广播/端口/SRV 开关/记录名），`device.N.*` 编号持久化；旧单设备格式自动迁移 |
 | 连发 | 每次点击连发 N 个魔术包（默认 5，可配 1-100），间隔 100ms 防丢包 |
 | 分层架构 | controller → service（校验/异常转译/日志）→ model / util，常量集中在 `config/AppConfig` |
 | 日志 | SLF4J + Logback（`logback.xml`），滚动文件 `~/.wol/logs/wol.log`（保留 7 天 / 50MB），用户可见信息仅走界面 |
