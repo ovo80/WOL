@@ -33,7 +33,12 @@ jobs:
           [xml]$pom = Get-Content -Raw pom.xml
           "version=$($pom.project.version)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
-      - name: Build and test (63 JUnit tests)
+      - name: Install mod-loader dependency (independent repo)
+        run: |
+          git clone --depth 1 https://github.com/ovo80/wol-mod-loader.git tools/wol-mod-loader
+          mvn -B -ntp -f tools/wol-mod-loader/pom.xml install
+
+      - name: Build and test (58 JUnit tests)
         run: mvn -B -ntp package
 
       - name: Fetch JavaFX jmods (cached after first run)

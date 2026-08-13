@@ -6,11 +6,11 @@
  */
 package ad.ovo.wol;
 
+import ad.ovo.modloader.PluginManager;
 import ad.ovo.wol.common.config.AppConfig;
 import ad.ovo.wol.controller.MainController;
 import ad.ovo.wol.model.AppSettings;
 import ad.ovo.wol.plugin.LanguageManager;
-import ad.ovo.wol.plugin.PluginManager;
 import ad.ovo.wol.plugin.ThemeManager;
 import ad.ovo.wol.service.ConfigService;
 import javafx.application.Application;

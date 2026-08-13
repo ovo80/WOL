@@ -6,20 +6,24 @@
  */
 package ad.ovo.wol.controller;
 
+import ad.ovo.modloader.Mod;
+import ad.ovo.modloader.PluginManager;
 import ad.ovo.wol.common.config.AppConfig;
 import ad.ovo.wol.common.exception.WolException;
 import ad.ovo.wol.model.AppSettings;
 import ad.ovo.wol.model.Device;
 import ad.ovo.wol.model.DeviceConfig;
 import ad.ovo.wol.plugin.LanguageManager;
-import ad.ovo.wol.plugin.PluginManager;
 import ad.ovo.wol.plugin.SendMode;
+import ad.ovo.wol.plugin.SendModeProvider;
 import ad.ovo.wol.plugin.ThemeManager;
 import ad.ovo.wol.service.ConfigService;
 import ad.ovo.wol.service.WolService;
 import ad.ovo.wol.service.impl.WolServiceImpl;
 import ad.ovo.wol.util.WolUtil;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.UnaryOperator;
@@ -480,9 +484,22 @@ public class MainController {
   private void selectMode(String modeId) {
     SendMode target = null;
     if (pluginManager != null && modeId != null && !modeId.isBlank()) {
-      target = pluginManager.findSendMode(modeId);
+      target = findSendMode(modeId);
     }
     modeBox.getSelectionModel().select(target);
+  }
+
+  /** 在已启用插件中按 mode id 查找发送模式；无匹配返回 null。 */
+  private SendMode findSendMode(String modeId) {
+    for (Mod mod : pluginManager.getMods()) {
+      if (pluginManager.isEnabled(mod.id()) && mod instanceof SendModeProvider provider) {
+        SendMode mode = provider.sendMode();
+        if (mode != null && modeId.equals(mode.id())) {
+          return mode;
+        }
+      }
+    }
+    return null;
   }
 
   /**
@@ -604,9 +621,23 @@ public class MainController {
     if (pluginManager == null || modeBox == null) {
       return;
     }
-    List<SendMode> modes = pluginManager.getSendModes();
-    modeBox.getItems().setAll(modes);
+    modeBox.getItems().setAll(getSendModes());
     modeBox.getItems().add(0, null);
+  }
+
+  /** 收集全部已启用插件提供的发送模式（按展示名排序，不含 null）。 */
+  private List<SendMode> getSendModes() {
+    List<SendMode> result = new ArrayList<>();
+    for (Mod mod : pluginManager.getMods()) {
+      if (pluginManager.isEnabled(mod.id()) && mod instanceof SendModeProvider provider) {
+        SendMode mode = provider.sendMode();
+        if (mode != null) {
+          result.add(mode);
+        }
+      }
+    }
+    result.sort(Comparator.comparing(SendMode::name));
+    return result;
   }
 
   /**

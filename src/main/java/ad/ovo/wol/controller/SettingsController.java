@@ -6,12 +6,12 @@
  */
 package ad.ovo.wol.controller;
 
+import ad.ovo.modloader.Mod;
+import ad.ovo.modloader.PluginManager;
 import ad.ovo.wol.common.config.AppConfig;
 import ad.ovo.wol.model.AppSettings;
 import ad.ovo.wol.plugin.Language;
 import ad.ovo.wol.plugin.LanguageManager;
-import ad.ovo.wol.plugin.Mod;
-import ad.ovo.wol.plugin.PluginManager;
 import ad.ovo.wol.plugin.Theme;
 import ad.ovo.wol.plugin.ThemeManager;
 import ad.ovo.wol.service.ConfigService;

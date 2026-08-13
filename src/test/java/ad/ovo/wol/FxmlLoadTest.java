@@ -12,11 +12,11 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import ad.ovo.modloader.PluginManager;
 import ad.ovo.wol.controller.MainController;
 import ad.ovo.wol.model.Device;
 import ad.ovo.wol.model.DeviceConfig;
 import ad.ovo.wol.plugin.LanguageManager;
-import ad.ovo.wol.plugin.PluginManager;
 import ad.ovo.wol.plugin.SendMode;
 import ad.ovo.wol.plugin.ThemeManager;
 import ad.ovo.wol.service.ConfigService;
@@ -219,11 +219,11 @@ class FxmlLoadTest {
     }
   }
 
-  /** 把 TestMod/TestSendMode 编译产物与 SPI 注册文件打包进 jar（与 PluginManagerTest 相同机制）。 */
+  /** 把 TestMod/TestSendMode 编译产物与 SPI 注册文件打包进 jar（与加载器仓库的端到端机制相同）。 */
   private void writeModJar(Path jarPath) throws IOException {
     try (OutputStream out = Files.newOutputStream(jarPath);
         JarOutputStream jar = new JarOutputStream(out)) {
-      jar.putNextEntry(new JarEntry("META-INF/services/ad.ovo.wol.plugin.Mod"));
+      jar.putNextEntry(new JarEntry("META-INF/services/ad.ovo.modloader.Mod"));
       jar.write("ad.ovo.wol.TestMod\n".getBytes(java.nio.charset.StandardCharsets.UTF_8));
       jar.closeEntry();
 

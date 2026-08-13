@@ -37,12 +37,14 @@ mvn package
 # 开发运行
 mvn javafx:run
 
-# 运行测试（63 例）
+# 运行测试（58 例）
 mvn test
 
 # 安装到本地 Maven 仓库（供独立插件项目按坐标依赖）
 mvn install
 ```
+
+> 依赖的通用 mod 加载器 `wol-mod-loader` 为独立仓库：首次构建前先 `git clone` 该仓库并在其目录执行 `mvn install`。
 
 ### 命令行手动运行
 
@@ -93,36 +95,38 @@ MSI 安装包采用自建 WiX 工程（安装向导可自选目录并记忆上�
 
 ## 插件体系（Mod / 主题 / 语言）
 
-采用类似 Minecraft mod 的「丢 jar 就加载」机制，核心用 JDK 内置 `ServiceLoader`（Mod）与 jar 描述文件（主题/语言），零外部依赖。三个目录位于配置目录下，**首次启动自动创建**：
+采用类似 Minecraft mod 的「丢 jar 就加载」机制。**通用 mod 加载器已拆为独立项目/独立仓库
+`wol-mod-loader`**（坐标 `ad.ovo.wol:wol-mod-loader:1.4.0`，Fabric/Forge 式）：`Mod` SPI、
+`PluginManager`（`ServiceLoader` 扫描、`URLClassLoader` 隔离、启用/禁用生命周期）都在其中，与具体宿主解耦。
+本仓库只定义 **WOL 业务扩展点**（`SendMode`/`SendModeProvider`）与主题/语言 jar 机制。三个目录位于配置目录下，**首次启动自动创建**：
 
 | 目录 | 用途 | jar 格式 |
 |------|------|----------|
-| `mods/` | 插件（新功能） | 实现 `ad.ovo.wol.plugin.Mod` 接口 + `META-INF/services/ad.ovo.wol.plugin.Mod` 注册文件 |
+| `mods/` | 插件（新功能） | 实现 `ad.ovo.modloader.Mod` 接口（来自 `wol-mod-loader`）+ `META-INF/services/ad.ovo.modloader.Mod` 注册文件 |
 | `resources/` | 主题（配色） | 根目录 `wol-theme.properties`（`id`/`name` 必填，`css` 可选默认 `theme.css`）+ CSS 文件 |
 | `i18n/` | 语言 | 根目录 `wol-language.properties`（`code`/`name` 必填） |
 
-### Mod 接口
+### Mod 接口（wol-mod-loader）
 
 ```java
-public interface Mod {
+public interface Mod {                 // ad.ovo.modloader.Mod，详见 wol-mod-loader 仓库
     String id();           // 全局唯一标识，持久化启用状态用
     String name();         // 展示名
     String version();      // 版本号
     String description();  // 一句话描述
     default void onEnable(ModContext context) {}  // 启用回调
     default void onDisable() {}                   // 禁用回调
-    default SendMode sendMode() { return null; }  // 可选的发送模式扩展
 }
 ```
 
-Mod 实现类须有无参构造器；jar 内放 `META-INF/services/ad.ovo.wol.plugin.Mod` 文件（内容为实现类全限定名）。放入 `mods/` 后重启应用，设置窗口「模组」页即可看到并勾选启用。
+Mod 实现类须有无参构造器；jar 内放 `META-INF/services/ad.ovo.modloader.Mod` 文件（内容为实现类全限定名）。放入 `mods/` 后重启应用，设置窗口「模组」页即可看到并勾选启用。
 
-### 发送模式扩展点（SendMode）
+### 发送模式扩展点（SendMode / SendModeProvider）
 
-插件可通过实现 `SendMode` 接口为设备提供「普通广播」之外的发送方式——这是 SRV 模式作为首个真实 Mod 使用的机制：
+插件通过实现宿主扩展点 `SendModeProvider`（同时实现 `Mod`）为设备提供「普通广播」之外的发送方式——这是 SRV 模式作为首个真实 Mod 使用的机制：
 
 ```java
-public interface SendMode {
+public interface SendMode {           // ad.ovo.wol.plugin.SendMode
     String id();                          // 模式唯一标识（如 "srv"），持久化到设备 mode 字段
     String name();                        // 展示名（如 "SRV 模式"）
     String description();                 // 一句话描述
@@ -137,7 +141,9 @@ public interface SendMode {
 
 核心只负责「构造魔术包 + 连发」，不感知具体模式语义——插件在 `resolve()` 里完成目标解析（如 SRV 记录查询），返回 `Target`（地址 + 端口 + 回显文本）。
 
-> **设计要点**：`Mod.id()` 与 `SendMode.id()` 语义不同（插件单元 id vs 发送模式 id），且两者都是无参 `String id()`，**不能由同一个类同时实现两个接口**（方法签名冲突）。约定：`Mod` 通过 `sendMode()` 返回一个**独立的** `SendMode` 实现实例（见 `SrvMod` 与 `SrvSendMode`）。
+> **设计要点**：`Mod`（通用加载器 SPI）与 `SendModeProvider`（宿主扩展点）是两个独立接口、无同签名方法，
+> 插件类可同时实现两者（见 `SrvMod implements Mod, SendModeProvider`）；`SendMode.id()` 与 `Mod.id()` 语义不同
+> （发送模式 id vs 插件单元 id），互不冲突。
 
 ### SRV 插件（首个真实 Mod）
 
@@ -177,15 +183,15 @@ wol-language.properties  # code=en \n name=English
 - 可用 `-Dwol.config.dir=<目录>` 覆盖配置目录；首次启动自动迁移旧版本配置
   （程序目录 → 用户目录，单文件 → 双文件拆分）
 
-## 测试（JUnit 5，63 例）
+## 测试（JUnit 5，58 例）
 
 - `WolUtilTest` / `WolServiceTest` / `DeviceConfigTest` / `AppSettingsTest` —— 核心逻辑
   （MAC 校验、端口边界、魔术包结构、UDP 单发/连发、配置往返/迁移/原子写入、非法值回退、
   发送模式委托、语言与启用插件持久化），无需图形环境
-- `PluginManagerTest` / `ThemeManagerTest` / `LanguageManagerTest` —— 插件体系
-  （jar 端到端加载、ServiceLoader 发现、发送模式查找、启用/禁用生命周期、主题/语言 jar 解析与回退），无需图形环境
-- `FxmlLoadTest` —— FXML + 双主题 CSS 加载（controller 绑定、initialize、CSS 解析），需要桌面会话
+- `ThemeManagerTest` / `LanguageManagerTest` —— 主题/语言 jar 机制（发现、id/code 解析回退），无需图形环境
+- `FxmlLoadTest` —— FXML + 双主题 CSS 加载（controller 绑定、initialize、CSS 解析、插件注入后模式重选），需要桌面会话
 - 全部测试通过 `-Dwol.config.dir` 隔离到临时目录，不触碰真实配置；
+  通用加载器的测试（`PluginManagerTest`）在其独立仓库 `wol-mod-loader` 中维护；
   插件项目的单测在其独立仓库中维护（离线路径，真实 DNS 查询不纳入单测）
 
 ## 工程结构
@@ -202,11 +208,9 @@ wol/
     │   ├── controller/SettingsController.java  # 设置窗口控制器（主题/语言/模组切换）
     │   ├── common/config/AppConfig.java    # 跨层公共：常量集中管理（端口/次数/主题/语言/插件目录名）
     │   ├── common/exception/WolException.java  # 跨层公共：业务异常（消息可直接展示给用户）
-    │   ├── plugin/Mod.java         # 插件 SPI：第三方 jar 实现此接口即可被加载
-    │   ├── plugin/ModContext.java  # 插件上下文（配置目录/专属日志）
-    │   ├── plugin/SendMode.java    # 发送模式扩展点 SPI（目标解析）
+    │   ├── plugin/SendMode.java    # WOL 发送模式扩展点 SPI（目标解析）
+    │   ├── plugin/SendModeProvider.java  # 宿主扩展点：插件经此暴露发送模式（配 Mod）
     │   ├── plugin/Target.java      # 发送目标（地址/端口/回显文本）
-    │   ├── plugin/PluginManager.java  # 插件加载与生命周期（ServiceLoader 扫描 mods 目录）
     │   ├── plugin/Theme.java       # 主题模型（id/展示名/CSS 地址）
     │   ├── plugin/ThemeManager.java   # 主题发现（内置 + resources 目录主题 jar）
     │   ├── plugin/Language.java    # 语言模型（code/展示名）
@@ -231,7 +235,6 @@ wol/
         ├── WolServiceTest.java          # JUnit 5：广播校验/单发/连发（真实 UDP）+ 发送模式委托
         ├── DeviceConfigTest.java        # JUnit 5：设备配置往返/迁移/原子写入（临时目录隔离）
         ├── AppSettingsTest.java         # JUnit 5：软件设置持久化/非法值回退/拆分迁移
-        ├── PluginManagerTest.java       # JUnit 5：插件 jar 端到端加载/发送模式查找/启用禁用
         ├── ThemeManagerTest.java        # JUnit 5：内置/外部主题发现、id 解析回退
         ├── LanguageManagerTest.java     # JUnit 5：内置/外部语言发现、code 解析回退
         └── FxmlLoadTest.java            # JUnit 5：FXML + 双主题 CSS 加载
@@ -249,8 +252,8 @@ wol/
 | 多设备 | `List<Device>`（设备名/MAC/广播/端口/发送模式 mode/modeValue），`device.N.*` 编号持久化；旧单设备格式自动迁移 |
 | 连发 | 每次点击连发 N 个魔术包（默认 5，可配 1-100），间隔 100ms 防丢包 |
 | 分层架构 | controller → service（校验/异常转译/日志）→ model / util，常量集中在 `config/AppConfig` |
-| 插件体系 | `plugin` 包：`Mod` SPI + `ServiceLoader`（零依赖）；`SendMode` 发送模式扩展点；主题/语言用 jar 描述文件发现；Mod 用独立 URLClassLoader 隔离加载 |
-| 项目拆分 | 主应用与插件彻底分离：`wol-core`（本仓库，含 SPI）独立发布；`wol-srv-mod`（独立仓库/独立工程）按坐标 `ad.ovo.wol:wol-core` 以 `provided` 依赖 core，运行时由主程序类加载器提供 SPI 类 |
+| 插件体系 | 通用加载器拆为独立仓库 `wol-mod-loader`（`Mod` SPI + `ServiceLoader` + `URLClassLoader` 隔离 + 生命周期），与宿主解耦；本仓库定义 WOL 扩展点 `SendMode`/`SendModeProvider`；主题/语言用 jar 描述文件发现 |
+| 项目拆分 | 三仓分离：`wol-mod-loader`（通用加载器）→ `wol-core`（本仓库，WOL 本体 + 业务扩展点）→ `wol-srv-mod`（插件，独立仓库）；插件以 `provided` 依赖 core 与 loader，运行时由主程序类加载器提供 SPI 类 |
 | 日志 | SLF4J + Logback（`logback.xml`），滚动文件 `~/.wol/logs/wol.log`（保留 7 天 / 50MB），用户可见信息仅走界面 |
 | 线程模型 | 发送放入 `Task<Void>` 后台线程；`updateMessage()`（内部 `Platform.runLater`）回显状态，绝不阻塞 FX 线程 |
 | 防重复提交 | 发送期间禁用「发送唤醒包」「保存配置」「新建」「删除」按钮，成功/失败/取消后统一恢复 |

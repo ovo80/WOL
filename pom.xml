@@ -23,6 +23,13 @@
 
     <dependencies>
 
+        <!-- 通用 mod 加载器（独立项目/仓库，Fabric/Forge 式） -->
+        <dependency>
+            <groupId>ad.ovo.wol</groupId>
+            <artifactId>wol-mod-loader</artifactId>
+            <version>1.4.0</version>
+        </dependency>
+
         <dependency>
             <groupId>org.openjfx</groupId>
             <artifactId>javafx-controls</artifactId>

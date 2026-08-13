@@ -44,6 +44,9 @@ build/
 ### 运行产物与日志 ###
 logs/
 
+### 独立加载器项目（wol-mod-loader，独立 git 仓库） ###
+/wol-mod-loader/
+
 ### AI 工作区数据（本地记忆，不入库） ###
 .workbuddy/
 .reasonix/
