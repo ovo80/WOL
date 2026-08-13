@@ -46,6 +46,7 @@ logs/
 
 ### AI 工作区数据（本地记忆，不入库） ###
 .workbuddy/
+.reasonix/
 
 ### 本地文档（个人留存，不入库） ###
 code-review-report.md
@@ -56,6 +57,3 @@ tools/jpackage/jmods/
 app-image
 
 /code-review-report-2026-08-05.md
-
-# 独立插件项目（wol-srv-mod，独立 git 仓库，由用户自行维护）
-/wol-srv-mod/

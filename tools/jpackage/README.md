@@ -25,7 +25,7 @@ tools/jpackage/
     └── javafx-jmods-20.0.2/
 ```
 
-exe 图标使用 `wol-core/src/main/resources/wol.ico`（用户提供的单图 64×64 图标，随源码入库）。
+exe 图标使用 `src/main/resources/wol.ico`（用户提供的单图 64×64 图标，随源码入库）。
 
 ## 使用步骤
 
@@ -81,7 +81,7 @@ MSI 为**每用户安装（per-user，免管理员）**，默认安装目录为 
 | `--main-class` | `ad.ovo.wol.Launcher` | **必须用 Launcher**（见下文坑 1） |
 | `--module-path` | jmods 目录 | jlink 的模块来源 |
 | `--add-modules` | `javafx.controls,javafx.fxml,java.naming,jdk.naming.dns` | 进运行时镜像的模块（java.naming 是 logback 所需，jdk.naming.dns 是 SRV 解析所需，见坑 2/5） |
-| `--icon` | `wol-core/src/main/resources/wol.ico` | Windows exe 图标（需 .ico，png 不行） |
+| `--icon` | `src/main/resources/wol.ico` | Windows exe 图标（需 .ico，png 不行） |
 
 ## 踩坑记录
 

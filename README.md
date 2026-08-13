@@ -192,50 +192,49 @@ wol-language.properties  # code=en \n name=English
 
 ```
 wol/
-├── pom.xml                              # 父 POM（依赖版本管理 + 单模块聚合）
-├── wol-core/                            # 本体：应用 + 插件 SPI + 主题/语言
-│   └── src/
-│       ├── main/
-│       │   ├── java/ad/ovo/wol/
-│       │   │   ├── Launcher.java            # 主类（普通 main，启动 MainApp；规避 JDK/jpackage FXHelper 检查）
-│       │   │   ├── MainApp.java             # JavaFX 应用入口（加载 FXML、初始化插件体系、窗口图标）
-│       │   │   ├── controller/MainController.java  # 主界面控制器（多设备交互 → 委托 Service；打开设置窗口）
-│       │   │   ├── controller/SettingsController.java  # 设置窗口控制器（主题/语言/模组切换）
-│       │   │   ├── common/config/AppConfig.java    # 跨层公共：常量集中管理（端口/次数/主题/语言/插件目录名）
-│       │   │   ├── common/exception/WolException.java  # 跨层公共：业务异常（消息可直接展示给用户）
-│       │   │   ├── plugin/Mod.java         # 插件 SPI：第三方 jar 实现此接口即可被加载
-│       │   │   ├── plugin/ModContext.java  # 插件上下文（配置目录/专属日志）
-│       │   │   ├── plugin/SendMode.java    # 发送模式扩展点 SPI（目标解析）
-│       │   │   ├── plugin/Target.java      # 发送目标（地址/端口/回显文本）
-│       │   │   ├── plugin/PluginManager.java  # 插件加载与生命周期（ServiceLoader 扫描 mods 目录）
-│       │   │   ├── plugin/Theme.java       # 主题模型（id/展示名/CSS 地址）
-│       │   │   ├── plugin/ThemeManager.java   # 主题发现（内置 + resources 目录主题 jar）
-│       │   │   ├── plugin/Language.java    # 语言模型（code/展示名）
-│       │   │   ├── plugin/LanguageManager.java  # 语言发现（内置 + i18n 目录语言 jar）
-│       │   │   ├── service/WolService.java  # 业务层：WOL 发送接口（异常契约/副作用/线程安全）
-│       │   │   ├── service/impl/WolServiceImpl.java  # 业务层实现：UDP 单播/广播发送 + 发送模式委托
-│       │   │   ├── service/ConfigService.java # 业务层：持久化（设备/设置双文件读写、迁移、原子写入，纯静态工具类）
-│       │   │   ├── model/Device.java        # 数据模型：设备（设备名/MAC/广播/端口/发送模式 mode/modeValue）
-│       │   │   ├── model/DeviceConfig.java  # 数据模型：设备列表（纯数据）
-│       │   │   ├── model/AppSettings.java   # 数据模型：软件设置（主题/语言/连发次数/启用插件）
-│       │   │   └── util/WolUtil.java        # 工具层：魔术包构造 + UDP 发送（纯网络）
-│       │   └── resources/
-│       │       ├── icon.png                 # 应用窗口图标（打包进 JAR）
-│       │       └── ad/ovo/wol/
-│       │           ├── main.fxml            # 主界面布局（设备列表 + 编辑表单 + 发送模式下拉）
-│       │           ├── settings.fxml        # 设置窗口布局（主题/语言/模组三个标签页）
-│       │           ├── css/theme-dark.css   # 深色主题
-│       │           └── css/theme-light.css  # 浅色主题（同一套组件，变量化配色）
-│       │           （device.properties 不打包，运行时在用户目录 ~/.wol 自动生成）
-│       └── test/java/ad/ovo/wol/
-│           ├── WolUtilTest.java             # JUnit 5：MAC/端口/魔术包结构（参数化）
-│           ├── WolServiceTest.java          # JUnit 5：广播校验/单发/连发（真实 UDP）+ 发送模式委托
-│           ├── DeviceConfigTest.java        # JUnit 5：设备配置往返/迁移/原子写入（临时目录隔离）
-│           ├── AppSettingsTest.java         # JUnit 5：软件设置持久化/非法值回退/拆分迁移
-│           ├── PluginManagerTest.java       # JUnit 5：插件 jar 端到端加载/发送模式查找/启用禁用
-│           ├── ThemeManagerTest.java        # JUnit 5：内置/外部主题发现、id 解析回退
-│           ├── LanguageManagerTest.java     # JUnit 5：内置/外部语言发现、code 解析回退
-│           └── FxmlLoadTest.java            # JUnit 5：FXML + 双主题 CSS 加载
+├── pom.xml                              # 主项目 POM（单项目：应用 + 插件 SPI + 主题/语言）
+└── src/
+    ├── main/
+    │   ├── java/ad/ovo/wol/
+    │   ├── Launcher.java            # 主类（普通 main，启动 MainApp；规避 JDK/jpackage FXHelper 检查）
+    │   ├── MainApp.java             # JavaFX 应用入口（加载 FXML、初始化插件体系、窗口图标）
+    │   ├── controller/MainController.java  # 主界面控制器（多设备交互 → 委托 Service；打开设置窗口）
+    │   ├── controller/SettingsController.java  # 设置窗口控制器（主题/语言/模组切换）
+    │   ├── common/config/AppConfig.java    # 跨层公共：常量集中管理（端口/次数/主题/语言/插件目录名）
+    │   ├── common/exception/WolException.java  # 跨层公共：业务异常（消息可直接展示给用户）
+    │   ├── plugin/Mod.java         # 插件 SPI：第三方 jar 实现此接口即可被加载
+    │   ├── plugin/ModContext.java  # 插件上下文（配置目录/专属日志）
+    │   ├── plugin/SendMode.java    # 发送模式扩展点 SPI（目标解析）
+    │   ├── plugin/Target.java      # 发送目标（地址/端口/回显文本）
+    │   ├── plugin/PluginManager.java  # 插件加载与生命周期（ServiceLoader 扫描 mods 目录）
+    │   ├── plugin/Theme.java       # 主题模型（id/展示名/CSS 地址）
+    │   ├── plugin/ThemeManager.java   # 主题发现（内置 + resources 目录主题 jar）
+    │   ├── plugin/Language.java    # 语言模型（code/展示名）
+    │   ├── plugin/LanguageManager.java  # 语言发现（内置 + i18n 目录语言 jar）
+    │   ├── service/WolService.java  # 业务层：WOL 发送接口（异常契约/副作用/线程安全）
+    │   ├── service/impl/WolServiceImpl.java  # 业务层实现：UDP 单播/广播发送 + 发送模式委托
+    │   ├── service/ConfigService.java # 业务层：持久化（设备/设置双文件读写、迁移、原子写入，纯静态工具类）
+    │   ├── model/Device.java        # 数据模型：设备（设备名/MAC/广播/端口/发送模式 mode/modeValue）
+    │   ├── model/DeviceConfig.java  # 数据模型：设备列表（纯数据）
+    │   ├── model/AppSettings.java   # 数据模型：软件设置（主题/语言/连发次数/启用插件）
+    │   └── util/WolUtil.java        # 工具层：魔术包构造 + UDP 发送（纯网络）
+    └── resources/
+        ├── icon.png                 # 应用窗口图标（打包进 JAR）
+        └── ad/ovo/wol/
+            ├── main.fxml            # 主界面布局（设备列表 + 编辑表单 + 发送模式下拉）
+            ├── settings.fxml        # 设置窗口布局（主题/语言/模组三个标签页）
+            ├── css/theme-dark.css   # 深色主题
+            └── css/theme-light.css  # 浅色主题（同一套组件，变量化配色）
+            （device.properties 不打包，运行时在用户目录 ~/.wol 自动生成）
+    └── test/java/ad/ovo/wol/
+        ├── WolUtilTest.java             # JUnit 5：MAC/端口/魔术包结构（参数化）
+        ├── WolServiceTest.java          # JUnit 5：广播校验/单发/连发（真实 UDP）+ 发送模式委托
+        ├── DeviceConfigTest.java        # JUnit 5：设备配置往返/迁移/原子写入（临时目录隔离）
+        ├── AppSettingsTest.java         # JUnit 5：软件设置持久化/非法值回退/拆分迁移
+        ├── PluginManagerTest.java       # JUnit 5：插件 jar 端到端加载/发送模式查找/启用禁用
+        ├── ThemeManagerTest.java        # JUnit 5：内置/外部主题发现、id 解析回退
+        ├── LanguageManagerTest.java     # JUnit 5：内置/外部语言发现、code 解析回退
+        └── FxmlLoadTest.java            # JUnit 5：FXML + 双主题 CSS 加载
 ```
 > SRV 插件 `wol-srv-mod` 已拆为**独立项目/独立仓库**（不再在本仓库内），
 > 按坐标 `ad.ovo.wol:wol-srv-mod` 依赖本仓库发布的 `wol-core`，构建产物为独立 jar，投放 `~/.wol/mods/`。

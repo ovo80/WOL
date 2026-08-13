@@ -71,10 +71,10 @@ rem ---------- 4. staging dir (main jar + non-JavaFX deps) ----------
 echo [2/5] Prepare staging dir target\app-staging
 if exist "%ROOT%\target\app-staging" rmdir /s /q "%ROOT%\target\app-staging"
 mkdir "%ROOT%\target\app-staging"
-copy /y "%ROOT%\wol-core\target\wol-core-*.jar" "%ROOT%\target\app-staging\" >nul
-copy /y "%ROOT%\wol-core\target\lib\slf4j-api-*.jar" "%ROOT%\target\app-staging\" >nul
-copy /y "%ROOT%\wol-core\target\lib\logback-classic-*.jar" "%ROOT%\target\app-staging\" >nul
-copy /y "%ROOT%\wol-core\target\lib\logback-core-*.jar" "%ROOT%\target\app-staging\" >nul
+copy /y "%ROOT%\target\wol-core-*.jar" "%ROOT%\target\app-staging\" >nul
+copy /y "%ROOT%\target\lib\slf4j-api-*.jar" "%ROOT%\target\app-staging\" >nul
+copy /y "%ROOT%\target\lib\logback-classic-*.jar" "%ROOT%\target\app-staging\" >nul
+copy /y "%ROOT%\target\lib\logback-core-*.jar" "%ROOT%\target\app-staging\" >nul
 
 rem ---------- 5. jpackage app-image (input for heat) ----------
 echo [3/5] jpackage build app-image
@@ -88,7 +88,7 @@ if exist "%ROOT%\target\dist\WOL" rmdir /s /q "%ROOT%\target\dist\WOL"
     --main-class ad.ovo.wol.Launcher ^
     --module-path "%ROOT%\tools\jpackage\jmods\javafx-jmods-20.0.2" ^
     --add-modules javafx.controls,javafx.fxml,java.naming,jdk.naming.dns ^
-    --icon "%ROOT%\wol-core\src\main\resources\wol.ico" ^
+    --icon "%ROOT%\src\main\resources\wol.ico" ^
     --dest "%ROOT%\target\dist"
 if errorlevel 1 (
     echo [ERROR] jpackage app-image failed.

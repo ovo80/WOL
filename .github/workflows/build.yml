@@ -47,8 +47,8 @@ jobs:
       - name: Prepare staging (main jar + runtime deps)
         run: |
           New-Item -ItemType Directory -Force target/app-staging | Out-Null
-          Copy-Item (Get-ChildItem wol-core/target/wol-core-*.jar | Select-Object -First 1) target/app-staging/
-          Copy-Item wol-core/target/lib/slf4j-api-*.jar, wol-core/target/lib/logback-classic-*.jar, wol-core/target/lib/logback-core-*.jar target/app-staging/
+          Copy-Item (Get-ChildItem target/wol-core-*.jar | Select-Object -First 1) target/app-staging/
+          Copy-Item target/lib/slf4j-api-*.jar, target/lib/logback-classic-*.jar, target/lib/logback-core-*.jar target/app-staging/
 
       - name: Build app image
         run: |
@@ -62,7 +62,7 @@ jobs:
             --main-class ad.ovo.wol.Launcher `
             --module-path tools/jpackage/jmods/javafx-jmods-20.0.2 `
             --add-modules javafx.controls,javafx.fxml,java.naming,jdk.naming.dns `
-            --icon wol-core/src/main/resources/wol.ico `
+            --icon src/main/resources/wol.ico `
             --dest target/dist
 
       - name: Package portable ZIP
