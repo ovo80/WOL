@@ -35,7 +35,7 @@ jobs:
 
       - name: Install mod-loader dependency (independent repo)
         run: |
-          git clone --depth 1 https://github.com/ovo80/wol-mod-loader.git tools/wol-mod-loader
+          git clone --depth 1 --branch v1.4.0 https://github.com/ovo80/wol-mod-loader.git tools/wol-mod-loader
           mvn -B -ntp -f tools/wol-mod-loader/pom.xml install
 
       - name: Build and test (58 JUnit tests)

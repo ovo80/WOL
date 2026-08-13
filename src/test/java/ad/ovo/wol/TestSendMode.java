@@ -1,5 +1,5 @@
 /*
- * WOL 唤醒工具 - 测试用发送模式（供 PluginManagerTest 端到端加载）。
+ * WOL 唤醒工具 - 测试用发送模式（供 FxmlLoadTest 端到端加载）。
  *
  * Copyright (c) 2026 ovo80
  * MIT License. See the LICENSE file in the project root for details.
