@@ -56,3 +56,6 @@ tools/jpackage/jmods/
 app-image
 
 /code-review-report-2026-08-05.md
+
+# 独立插件项目（wol-srv-mod，独立 git 仓库，由用户自行维护）
+/wol-srv-mod/

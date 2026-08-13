@@ -25,7 +25,7 @@ tools/jpackage/
     └── javafx-jmods-20.0.2/
 ```
 
-exe 图标使用 `src/main/resources/wol.ico`（用户提供的单图 64×64 图标，随源码入库）。
+exe 图标使用 `wol-core/src/main/resources/wol.ico`（用户提供的单图 64×64 图标，随源码入库）。
 
 ## 使用步骤
 
@@ -64,6 +64,15 @@ target\dist\WOL\
 设备列表 `device.properties` 与软件设置 `settings.properties` 分离存储，
 首次启动自动迁移旧版程序目录下的配置并拆分；可用 `-Dwol.config.dir` 覆盖。
 
+### 4. MSI 安装与升级（tools/wix/build-wix-installer.bat）
+
+MSI 为**每用户安装（per-user，免管理员）**，默认安装目录为 `%LOCALAPPDATA%\WOL`，
+用自建 WiX 工程（`tools/wix/Product.wxs`，WixUI_Mondo 向导）生成：
+- 安装向导可自选安装目录，并默认显示上次安装位置（记录在 `HKCU\Software\ovo80\WOL\InstallDir`）
+- 同一 UpgradeCode + MajorUpgrade：高版本安装时自动检测并替换低版本，无需先手动卸载
+- 桌面快捷方式与开始菜单分组在向导中可选
+- 升级不影响用户配置（`~/.wol/` 独立于程序目录）
+
 ## 核心参数说明
 
 | 参数 | 值 | 说明 |
@@ -72,7 +81,7 @@ target\dist\WOL\
 | `--main-class` | `ad.ovo.wol.Launcher` | **必须用 Launcher**（见下文坑 1） |
 | `--module-path` | jmods 目录 | jlink 的模块来源 |
 | `--add-modules` | `javafx.controls,javafx.fxml,java.naming,jdk.naming.dns` | 进运行时镜像的模块（java.naming 是 logback 所需，jdk.naming.dns 是 SRV 解析所需，见坑 2/5） |
-| `--icon` | `src/main/resources/wol.ico` | Windows exe 图标（需 .ico，png 不行） |
+| `--icon` | `wol-core/src/main/resources/wol.ico` | Windows exe 图标（需 .ico，png 不行） |
 
 ## 踩坑记录
 
@@ -98,20 +107,34 @@ target\dist\WOL\
    「SRV 解析不可用：缺少 JDK DNS 模块」。→ 两个 bat 的 `--add-modules`
    均需追加 `jdk.naming.dns`（classpath 直跑模式不受影响，该模块默认在完整 JDK 中）。
 
-## MSI 安装包（可选，已配置）
+6. **MSI 升级装不到旧目录**：jpackage 的 `--win-dir-chooser` 会让每次安装都弹目录选择，
+   而 MSI **不记忆用户自定义的安装目录**——升级时默认目录与旧目录不一致，
+   表现为「高版本不能覆盖低版本、必须手动选回 WOL 目录」。
+   → **v1.3.0 起 MSI 改用自建 WiX 工程**（见下节），支持向导式选目录并记忆上次位置。
 
-`tools\jpackage\build-installer.bat` 生成 **MSI 安装程序**（结构与 app-image 脚本一致，
-jpackage 换 `--type msi`）：
+## MSI 安装包（自建 WiX 工程，v1.3.0 起）
+
+`tools\wix\build-wix-installer.bat` 用 **WiX 3.x 自建安装工程**替代 jpackage MSI：
 
 ```
-WOL-1.3.0.msi  约 29MB，双击安装 / 控制面板卸载
+WOL-1.3.0.msi  约 30MB，双击安装 / 控制面板卸载
 ```
 
-- 前置：**WiX Toolset 3.x**（`candle.exe`/`light.exe` 在 PATH，本机已装；
-  jpackage 会自动探测，也可从 https://github.com/wixtoolset/wix3/releases 下载 wix311.exe）
-- 安装特性：`--win-dir-chooser` 自选安装目录、`--win-shortcut` 桌面快捷方式、
-  `--win-menu-group` 开始菜单分组
-- 已验证：本机 jpackage 打包成功（MSI 头为有效 OLE Compound File 格式）
+**安装向导（WixUI_Mondo）**：欢迎 → 许可协议 → **功能选择**（程序主体必装；
+桌面快捷方式、开始菜单分组两个可选项）→ **目录选择** → 确认安装。
+
+- **目录选择**：首次安装默认 `%LOCALAPPDATA%\WOL`（per-user，免管理员）可自选；
+  升级时默认显示**上次安装目录**（安装时写入 `HKCU\Software\ovo80\WOL\InstallDir`，
+  `RegistrySearch` 回读），且同一 UpgradeCode + MajorUpgrade 自动覆盖旧版
+- **功能可选**：桌面快捷方式 / 开始菜单分组做成独立 Feature，向导中可勾选取消
+- 工程文件：`tools/wix/Product.wxs`（主工程，版本号经 `-dAppVersion` 注入）、
+  `zh-CN.wxl`（本地化，**Codepage=936 必需**——不加会报 LGHT0311 中文代码页错误）、
+  `LICENSE.rtf`（许可协议页）
+- 构建流程：Maven → jpackage app-image（供 heat 采集）→ heat 生成文件清单
+  （`-g1` 按目录分组）→ candle → light（`-cultures:zh-CN -sval`）
+- 前置：**WiX Toolset 3.x**（`candle/heat/light` 在 PATH，可从
+  https://github.com/wixtoolset/wix3/releases 下载 wix311.exe）
+- 已验证：本机构建成功（MSI 头为有效 OLE Compound File 格式）
 - 注意：未签名 MSI 安装时 SmartScreen 会提示「未知发布者」，个人自用直接忽略即可
 
 ## 进阶（可选）

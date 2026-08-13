@@ -33,7 +33,7 @@ jobs:
           [xml]$pom = Get-Content -Raw pom.xml
           "version=$($pom.project.version)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
-      - name: Build and test (70 JUnit tests)
+      - name: Build and test (63 JUnit tests)
         run: mvn -B -ntp package
 
       - name: Fetch JavaFX jmods (cached after first run)
@@ -47,12 +47,12 @@ jobs:
       - name: Prepare staging (main jar + runtime deps)
         run: |
           New-Item -ItemType Directory -Force target/app-staging | Out-Null
-          Copy-Item (Get-ChildItem target/wol-*.jar | Select-Object -First 1) target/app-staging/
-          Copy-Item target/lib/slf4j-api-*.jar, target/lib/logback-classic-*.jar, target/lib/logback-core-*.jar target/app-staging/
+          Copy-Item (Get-ChildItem wol-core/target/wol-core-*.jar | Select-Object -First 1) target/app-staging/
+          Copy-Item wol-core/target/lib/slf4j-api-*.jar, wol-core/target/lib/logback-classic-*.jar, wol-core/target/lib/logback-core-*.jar target/app-staging/
 
       - name: Build app image
         run: |
-          $jar = (Get-ChildItem target/app-staging/wol-*.jar | Select-Object -First 1).Name
+          $jar = (Get-ChildItem target/app-staging/wol-core-*.jar | Select-Object -First 1).Name
           jpackage --type app-image `
             --name WOL `
             --app-version ${{ steps.version.outputs.version }} `
@@ -62,30 +62,20 @@ jobs:
             --main-class ad.ovo.wol.Launcher `
             --module-path tools/jpackage/jmods/javafx-jmods-20.0.2 `
             --add-modules javafx.controls,javafx.fxml,java.naming,jdk.naming.dns `
-            --icon src/main/resources/wol.ico `
+            --icon wol-core/src/main/resources/wol.ico `
             --dest target/dist
 
       - name: Package portable ZIP
         run: |
           Compress-Archive -Force -Path target/dist/WOL -DestinationPath "target/dist/WOL-${{ steps.version.outputs.version }}.zip"
 
-      - name: Build MSI installer (WiX preinstalled on runner)
+      - name: Build MSI installer (WiX 3.x preinstalled on runner)
         run: |
-          $jar = (Get-ChildItem target/app-staging/wol-*.jar | Select-Object -First 1).Name
-          jpackage --type msi `
-            --name WOL `
-            --app-version ${{ steps.version.outputs.version }} `
-            --vendor ovo80 `
-            --input target/app-staging `
-            --main-jar $jar `
-            --main-class ad.ovo.wol.Launcher `
-            --module-path tools/jpackage/jmods/javafx-jmods-20.0.2 `
-            --add-modules javafx.controls,javafx.fxml,java.naming,jdk.naming.dns `
-            --icon src/main/resources/wol.ico `
-            --win-dir-chooser `
-            --win-shortcut `
-            --win-menu-group "WOL Wake-on-LAN" `
-            --dest target/dist
+          $ver = "${{ steps.version.outputs.version }}"
+          New-Item -ItemType Directory -Force target/wix/obj | Out-Null
+          heat.exe dir target/dist/WOL -gg -g1 -srd -sfrag -cg WolFilesGroup -dr INSTALLDIR -var var.WolDir -out target/wix/appfiles.wxs
+          candle.exe -dAppVersion $ver -dWolDir (Resolve-Path target/dist/WOL).Path -ext WixUIExtension -out "target/wix/obj\\" tools/wix/Product.wxs target/wix/appfiles.wxs
+          light.exe -ext WixUIExtension -cultures:zh-CN -sval -out "target/dist/WOL-$ver.msi" target/wix/obj/*.wixobj
 
       - name: Upload packages as artifacts
         uses: actions/upload-artifact@v7

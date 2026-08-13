@@ -53,24 +53,24 @@ rem ---------- 3. staging dir (main jar + non-JavaFX deps) ----------
 echo [2/3] Prepare staging dir target\app-staging
 if exist "%ROOT%\target\app-staging" rmdir /s /q "%ROOT%\target\app-staging"
 mkdir "%ROOT%\target\app-staging"
-copy /y "%ROOT%\target\wol-*.jar" "%ROOT%\target\app-staging\" >nul
-copy /y "%ROOT%\target\lib\slf4j-api-*.jar" "%ROOT%\target\app-staging\" >nul
-copy /y "%ROOT%\target\lib\logback-classic-*.jar" "%ROOT%\target\app-staging\" >nul
-copy /y "%ROOT%\target\lib\logback-core-*.jar" "%ROOT%\target\app-staging\" >nul
+copy /y "%ROOT%\wol-core\target\wol-core-*.jar" "%ROOT%\target\app-staging\" >nul
+copy /y "%ROOT%\wol-core\target\lib\slf4j-api-*.jar" "%ROOT%\target\app-staging\" >nul
+copy /y "%ROOT%\wol-core\target\lib\logback-classic-*.jar" "%ROOT%\target\app-staging\" >nul
+copy /y "%ROOT%\wol-core\target\lib\logback-core-*.jar" "%ROOT%\target\app-staging\" >nul
 
 rem ---------- 4. jpackage ----------
 echo [3/3] jpackage build app-image
 if exist "%ROOT%\target\dist\WOL" rmdir /s /q "%ROOT%\target\dist\WOL"
 "%JDK_JPACKAGE%" --type app-image ^
     --name WOL ^
-    --app-version 1.3.0 ^
+    --app-version 1.4.0 ^
     --vendor ovo80 ^
     --input "%ROOT%\target\app-staging" ^
-    --main-jar wol-1.3.0.jar ^
+    --main-jar wol-core-1.4.0.jar ^
     --main-class ad.ovo.wol.Launcher ^
     --module-path "%ROOT%\tools\jpackage\jmods\javafx-jmods-20.0.2" ^
     --add-modules javafx.controls,javafx.fxml,java.naming,jdk.naming.dns ^
-    --icon "%ROOT%\src\main\resources\wol.ico" ^
+    --icon "%ROOT%\wol-core\src\main\resources\wol.ico" ^
     --dest "%ROOT%\target\dist"
 if errorlevel 1 (
     echo [ERROR] jpackage failed.

@@ -1,0 +1,141 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+
+  <!--
+    WOL 唤醒工具 MSI 安装工程（WiX 3.x，替代 jpackage 的 msi 类型）。
+
+    设计要点：
+    - WixUI_Mondo 向导：欢迎 -> 许可 -> 功能选择（桌面快捷方式/开始菜单分组可选）
+      -> 目录选择（默认值 = 上次安装目录，RegistrySearch 记忆）-> 确认安装
+    - per-user 安装（%LOCALAPPDATA%\WOL 为默认），免管理员权限
+    - 同一 UpgradeCode + MajorUpgrade：高版本自动替换低版本，
+      目录选择页默认显示上次安装位置（HKCU\Software\ovo80\WOL\InstallDir）
+
+    版本号经预处理器变量 $(var.AppVersion) 注入（build-wix-installer.bat 传 -dAppVersion）。
+  -->
+
+  <Product Id="*"
+           Name="WOL 唤醒工具"
+           Language="2052"
+           Version="$(var.AppVersion)"
+           Manufacturer="ovo80"
+           Codepage="936"
+           UpgradeCode="D02E96E2-F609-4D8A-834D-1EBA8DA45191">
+
+    <Package InstallerVersion="500"
+             Compressed="yes"
+             InstallScope="perUser"
+             InstallPrivileges="limited"
+             Description="WOL 唤醒工具：通过 UDP 发送魔术包，唤醒远程计算机"
+             Manufacturer="ovo80" />
+
+    <MajorUpgrade DowngradeErrorMessage="已安装更高版本的 WOL 唤醒工具，请先卸载旧版本" />
+
+    <MediaTemplate EmbedCab="yes" />
+
+    <!-- 控制面板「程序和功能」显示安装位置 -->
+    <Property Id="ARPINSTALLLOCATION" Value="[INSTALLDIR]" />
+
+    <!-- ================= 记住上次安装目录 ================= -->
+    <Property Id="WOL_INSTALLDIR">
+      <RegistrySearch Id="WolInstallDirSearch"
+                      Root="HKCU"
+                      Key="Software\ovo80\WOL"
+                      Name="InstallDir"
+                      Type="raw" />
+    </Property>
+    <SetProperty Id="INSTALLDIR"
+                 Value="[WOL_INSTALLDIR]"
+                 After="AppSearch">
+      <![CDATA[WOL_INSTALLDIR AND NOT INSTALLDIR]]>
+    </SetProperty>
+
+    <!-- ================= 目录结构 ================= -->
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="LocalAppDataFolder">
+        <Directory Id="INSTALLDIR" Name="WOL" />
+      </Directory>
+      <Directory Id="DesktopFolder" Name="Desktop" />
+      <Directory Id="ProgramMenuFolder">
+        <Directory Id="StartMenuDir" Name="WOL Wake-on-LAN" />
+      </Directory>
+    </Directory>
+
+    <!-- ================= 功能定义 ================= -->
+    <Feature Id="MainFeature"
+             Title="WOL 唤醒工具"
+             Description="程序主体（主程序 + 运行环境）"
+             Level="1" Absent="disallow">
+      <ComponentRef Id="InstallDirRecord" />
+      <ComponentGroupRef Id="WolFilesGroup" />
+    </Feature>
+
+    <Feature Id="DesktopShortcutFeature"
+             Title="桌面快捷方式"
+             Description="在桌面创建 WOL 唤醒工具快捷方式"
+             Level="1">
+      <ComponentRef Id="DesktopShortcut" />
+    </Feature>
+
+    <Feature Id="StartMenuFeature"
+             Title="开始菜单分组"
+             Description="在开始菜单创建「WOL Wake-on-LAN」分组"
+             Level="1">
+      <ComponentRef Id="StartMenuShortcut" />
+    </Feature>
+
+    <!-- ================= 组件 ================= -->
+    <!-- 安装目录记忆（HKCU，供升级时目录选择页回显） -->
+    <Component Id="InstallDirRecord" Directory="INSTALLDIR" Guid="3B7E6C2A-9F14-4D6B-8A53-0C2E5F9B71D4">
+      <RegistryValue Root="HKCU"
+                     Key="Software\ovo80\WOL"
+                     Name="InstallDir"
+                     Type="string"
+                     Value="[INSTALLDIR]"
+                     KeyPath="yes" />
+    </Component>
+
+    <!-- 桌面快捷方式（可选功能） -->
+    <Component Id="DesktopShortcut" Directory="DesktopFolder" Guid="7C4D2B9E-5A61-4E8C-B0F3-1D8A6C4E92F5">
+      <Shortcut Id="DesktopWolShortcut"
+                Name="WOL 唤醒工具"
+                Description="WOL 唤醒工具"
+                Target="[INSTALLDIR]WOL.exe"
+                WorkingDirectory="INSTALLDIR" />
+      <RegistryValue Root="HKCU"
+                     Key="Software\ovo80\WOL\Shortcuts"
+                     Name="Desktop"
+                     Type="integer"
+                     Value="1"
+                     KeyPath="yes" />
+    </Component>
+
+    <!-- 开始菜单分组（可选功能） -->
+    <Component Id="StartMenuShortcut" Directory="StartMenuDir" Guid="A91E3F4C-2B7D-4E0A-9C56-7F30B1D8E624">
+      <Shortcut Id="StartMenuWolShortcut"
+                Name="WOL 唤醒工具"
+                Description="WOL 唤醒工具"
+                Target="[INSTALLDIR]WOL.exe"
+                WorkingDirectory="INSTALLDIR" />
+      <RemoveFolder Id="RemoveStartMenuDir" Directory="StartMenuDir" On="uninstall" />
+      <RegistryValue Root="HKCU"
+                     Key="Software\ovo80\WOL\Shortcuts"
+                     Name="StartMenu"
+                     Type="integer"
+                     Value="1"
+                     KeyPath="yes" />
+    </Component>
+
+    <!-- ================= UI（WixUI_Mondo：功能选择 + 目录选择） ================= -->
+    <UIRef Id="WixUI_Mondo" />
+    <Property Id="WIXUI_INSTALLDIR" Value="INSTALLDIR" />
+    <WixVariable Id="WixUILicenseRtf" Value="tools\wix\LICENSE.rtf" />
+
+    <!-- 升级时卸载旧版后清理开始菜单空分组 -->
+    <Property Id="REMOVEOLDPRODUCTS" Value="yes" />
+  </Product>
+
+  <Fragment>
+    <!-- heat 生成的程序文件清单（appfiles.wxs）经 ComponentGroupRef 挂到 MainFeature -->
+  </Fragment>
+</Wix>
